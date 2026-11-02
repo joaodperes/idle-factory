@@ -8,7 +8,7 @@ export function availableStock(state,resource){
 /** Physical goods assigned to a live order are no longer available to machines or sales.
  * Earliest deadlines receive goods first, so two offers cannot count the same stock twice. */
 export function reserveStoredResource(state,node,resource){
- if((node.kind!=='market'&&node.kind!=='warehouse')||state.autoSell?.[resource])return;
+ if(node.kind!=='market'&&node.kind!=='warehouse')return;
  let available=Math.max(0,node.buffer[resource]||0);
  if(available<=0)return;
  const orders=(state.orders||[]).filter(o=>o.resource===resource&&o.expiresAt>(state.orderClock||0))
@@ -23,11 +23,11 @@ export function reserveStoredResource(state,node,resource){
   if(available<=1e-8)break;
  }
 }
-/** Capture existing warehouse/terminal inventory when an order arrives or auto-sale is turned off. */
+/** Contract orders always have first claim on stored stock; Auto Sell only liquidates surplus. */
 export function reserveStoredStock(state){
  if(!state.orders?.length)return;
- for(const node of state.nodes){
-  if(node.kind!=='market'&&node.kind!=='warehouse')continue;
+ for(const kind of ['warehouse','market'])for(const node of state.nodes){
+  if(node.kind!==kind)continue;
   for(const resource of Object.keys(node.buffer))reserveStoredResource(state,node,resource);
  }
 }
@@ -80,7 +80,7 @@ export function fulfillOrder(state,catalog,id,earn){
  const order=state.orders.find(o=>o.id===id);
  if(!order)return 'This order has expired or is no longer available';
  if(order.expiresAt<=state.orderClock)return 'Order expired';
- // A manual click can reserve already-stocked goods without waiting for the next tick.
+ // Allocate any remaining free warehouse/terminal inventory before delivery.
  reserveStoredStock(state);
  if((order.reserved||0)+1e-7<order.amount)return 'Not enough reserved '+catalog.resources[order.resource]?.name;
  const multiplier=1+talentModifier(state,'contracts');
