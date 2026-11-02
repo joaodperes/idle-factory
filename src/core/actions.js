@@ -23,7 +23,12 @@ export function buyTalent(state,catalog,id){
   return null;
 }
 /** Free respec keeps players experimenting with different factory builds. */
-export function respecTalents(state){refundTalents(state);return null;}
+export function respecTalents(state){
+  refundTalents(state);
+  // Disable Auto-Trading toggles if this build no longer has that perk.
+  for(const resource of Object.keys(state.autoSell||{}))if(resource!=='metal')state.autoSell[resource]=false;
+  return null;
+}
 export function buyInvestment(state,catalog,id){
   const investment=catalog.investments[id];if(!investment)return 'Investment not found';
   const rank=state.investments[id]||0;if(rank>=investment.max)return 'Investment is fully upgraded';
