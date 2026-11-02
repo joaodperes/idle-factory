@@ -183,25 +183,43 @@ function renderLayouts(){
 function renderContracts(){
   $('#contracts-list').innerHTML=catalog.contracts.map(c=>{
     const qty=marketQuantity(state,c.resource),ready=contractAvailable(state,c);
+    const remaining=Math.max(0,c.amount-qty),sellActive=!!state.autoSell[c.resource];
+    const instructions=`Deliver ${c.amount} ${catalog.resources[c.resource].name} to a Trade Terminal. ${sellActive?'Disable AUTO selling of this resource first so stock can accumulate.':'Keep automatic selling OFF until you deliver.'}`;
     const cooldown=Math.ceil((state.contractRuns[c.id]||0)-state.runElapsed);
     const pct=Math.min(100,qty/c.amount*100);
-    return `<article class="contract"><div class="contract-top"><div><div class="eyebrow">${safe(catalog.resources[c.resource].name).toUpperCase()} ORDER</div><h3>${safe(c.title)}</h3></div><strong class="value">+${money(c.reward*(1+0.2*(state.specialization==='strategist'?(state.talents.negotiation||0):0)))}</strong></div><p class="muted tiny">${safe(c.description)}</p><div class="progress"><span style="width:${pct}%"></span></div><div class="contract-bottom"><span>${fmt(qty)} / ${c.amount} at terminals</span><button data-action="contract" data-id="${c.id}" ${ready&&qty+0.000001>=c.amount?'':'disabled'}>${ready?'Deliver goods':`Restock ${timeLabel(cooldown)}`}</button></div></article>`;
+    return `<article class="contract"><div class="contract-top"><div><div class="eyebrow">${safe(catalog.resources[c.resource].name).toUpperCase()} ORDER</div><h3>${safe(c.title)}</h3></div><strong class="value">+${money(c.reward*(1+talentModifier(state,'contracts')))}</strong></div><p class="muted tiny">${safe(c.description)}</p><p class="contract-instructions">${safe(instructions)} ${remaining>0?fmt(remaining)+' more required.':'Ready for delivery.'}</p><div class="progress"><span style="width:${pct}%"></span></div><div class="contract-bottom"><span>${fmt(qty)} / ${c.amount} at terminals</span><button data-action="contract" data-id="${c.id}" ${ready&&qty+0.000001>=c.amount?'':'disabled'}>${ready?'Deliver goods':`Restock ${timeLabel(cooldown)}`}</button></div></article>`;
   }).join('');
   $('#market-list').innerHTML=Object.entries(catalog.resources).filter(([,r])=>r.price>0).map(([id,r])=>{
-    const qty=marketQuantity(state,id),auto=state.autoSell[id],canAuto=id==='metal'||(state.specialization==='architect'&&state.talents.automation>0);
+    const qty=marketQuantity(state,id),auto=state.autoSell[id],canAuto=id==='metal'||talentModifier(state,'autoTrading')>0;
     return `<div class="market-row"><div class="market-name"><span class="market-dot" style="background:${r.color}"></span><div><strong>${safe(r.name)}</strong><small>${fmt(qty)} in terminals · ${money(price(state,catalog,id))}/unit</small></div></div><div class="market-actions"><button data-action="autosell" data-id="${id}" ${canAuto?'':'disabled'} title="${canAuto?'Toggle automatic sales':'Automation talent unlocks automated sales'}">${auto?'AUTO ON':'AUTO OFF'}</button><button data-action="sell" data-id="${id}" ${qty>0?'':'disabled'}>Sell</button></div></div>`;
   }).join('');
 }
 function renderManagement(){
-  const level=managerLevel(state),points=availableTalentPoints(state);
-  $('#level-stats').innerHTML=`<div><small>MANAGEMENT LEVEL</small><strong>${level}</strong></div><div><small>FREE TALENT POINTS</small><strong>${points}</strong></div><div><small>CAREER XP</small><strong>${fmt(state.xp)}</strong></div>`;
-  $('#talent-branches').innerHTML=Object.entries(catalog.talents).map(([id,branch])=>{
-    const active=id===state.specialization;
-    return `<article class="card talent-branch ${active?'active':''}"><div class="talent-symbol">${branch.icon}</div><h2>${branch.name}</h2><p class="muted">${branch.description}</p><button class="branch-switch" data-action="specialization" data-id="${id}" ${active?'disabled':''}>${active?'✓ Active specialization':'Switch specialization'}</button><div class="divider"></div>${branch.talents.map(t=>{
-      const rank=state.talents[t.id]||0;
-      return `<div class="talent-item"><div><strong>${t.name}</strong><small>${t.description}</small><span class="rank">${rank} / ${t.max}</span></div><button data-action="talent" data-id="${t.id}" ${active&&points>0&&rank<t.max?'':'disabled'}>＋</button></div>`;
-    }).join('')}</article>`;
+  const level=factoryLevel(state),free=availableTalentPoints(state),next=nextFactoryLevelXp(state);
+  const levelStart=60*(level-1)**2;
+  const pct=next===null?100:Math.max(0,Math.min(100,100*(state.xp-levelStart)/(next-levelStart)));
+  $('#level-stats').innerHTML=`<div class="factory-progression"><div class="factory-level-glyph">${level}</div><div class="factory-level-copy"><strong>Factory Level ${level}</strong><small>${next===null?'Maximum factory level':`${fmt(state.xp)} / ${fmt(next)} XP · ${fmt(Math.max(0,next-state.xp))} XP to next level`}</small><div class="progress factory-xp"><span style="width:${pct}%"></span></div></div><div class="factory-level-perks"><strong>${usedSlots(state,catalog)} / ${totalSlots(state)} slots</strong><small>+2 industrial slots every 3 factory levels</small><strong>${free} unspent talent points</strong><small>${level<TALENT_UNLOCK_LEVEL?`Talents unlock at level ${TALENT_UNLOCK_LEVEL}`:`${pointsEarned(state)} earned from levels`}</small></div></div>`;
+  const branches=Object.entries(catalog.talents).map(([id,branch])=>{
+    const spent=branch.nodes.reduce((sum,n)=>sum+(state.talents[n.id]||0),0);
+    const paths=branch.nodes.flatMap(node=>(node.requires||[]).map(parentId=>{
+      const parent=branch.nodes.find(n=>n.id===parentId);if(!parent)return '';
+      const ax=50+100*(parent.col-1),ay=(parent.tier-1)*144+91;
+      const bx=50+100*(node.col-1),by=(node.tier-1)*144+37;
+      const active=(state.talents[parentId]||0)>0;
+      return `<path d="M${ax} ${ay} C${ax} ${ay+24} ${bx} ${by-24} ${bx} ${by}" class="${active?'linked':''}"/>`;
+    })).join('');
+    const nodes=branch.nodes.map(node=>{
+      const rank=state.talents[node.id]||0,status=talentStatus(state,catalog,node.id);
+      const owned=rank>0,ready=status.enabled,choice=node.choice?' ◇ Doctrine choice':'';
+      const title=`${node.name} (${rank}/${node.max})\n${node.description}\n${status.reason}`;
+      const parents=(node.requires||[]).map(pid=>branch.nodes.find(n=>n.id===pid)?.name||pid).join(' / ');
+      return `<button class="talent-node ${owned?'learned':''} ${ready?'learnable':''} ${!owned&&!ready?'unavailable':''}" data-action="talent" data-id="${node.id}" style="grid-row:${node.tier};grid-column:${node.col}" title="${safe(title)}" ${ready?'':'disabled'}><span class="talent-node-icon">${safe(node.icon)}</span><strong>${safe(node.name)}</strong><span class="talent-node-rank">${rank} / ${node.max}</span><small>${safe(node.description)}</small><span class="talent-status">${owned?rank===node.max?'✓ Complete':'✓ Invested':ready?'＋ Learn':status.reason}</span>${choice?`<em>${choice}</em>`:''}${parents?`<span class="talent-prereq">From: ${safe(parents)}</span>`:''}</button>`;
+    }).join('');
+    const tiers=Object.entries(TIER_RULES).map(([tier,rule])=>`<div class="talent-tier-label" style="top:${(Number(tier)-1)*144+2}px">Tier ${tier} · Level ${rule.level} · ${rule.spent} spent in tree</div>`).join('');
+    return `<article class="card talent-branch" style="--branch-color:${safe(branch.color)}"><header class="talent-tree-header"><span class="talent-tree-icon">${safe(branch.icon)}</span><div><h2>${safe(branch.name)}</h2><p>${safe(branch.description)}</p><small>${spent} points invested · ${branch.nodes.length} talents</small></div></header><div class="talent-map">${tiers}<svg class="talent-links" viewBox="0 0 300 720" preserveAspectRatio="none" aria-hidden="true">${paths}</svg><div class="talent-node-grid">${nodes}</div></div></article>`;
   }).join('');
+  const unlock=level<TALENT_UNLOCK_LEVEL?`<div class="talent-lock-banner"><strong>Talent trees unlock at Factory Level ${TALENT_UNLOCK_LEVEL}</strong><p>Keep producing and fulfilling contracts to gain factory XP. No specialization is selected automatically.</p></div>`:'';
+  $('#talent-branches').innerHTML=`${unlock}<div class="talent-tree-intro"><p>Build freely across all three trees. Deeper tiers require levels, earlier linked talents and points spent in that tree. Doctrine choices are mutually exclusive.</p><button data-action="respec" ${pointsEarned(state)&&Object.values(state.talents).some(Boolean)?'':'disabled'}>↺ Refund all talent points</button></div><div class="talent-tree-columns">${branches}</div>`;
 }
 function renderResearch(){
   const lab=catalog.facilities.lab;
@@ -343,7 +361,7 @@ function handleAction(button){
   }
   if(action==='contract'){runAction(completeContract(state,catalog,id),'Contract fulfilled');return;}
   if(action==='autosell'){
-    if(id!=='metal'&&!(state.specialization==='architect'&&state.talents.automation>0))return;
+    if(id!=='metal'&&talentModifier(state,'autoTrading')<=0)return;
     state.autoSell[id]=!state.autoSell[id];runAction(null,state.autoSell[id]?'Auto-selling enabled':'Goods reserved for contracts');return;
   }
   if(action==='sell'){
@@ -352,7 +370,10 @@ function handleAction(button){
   }
   if(action==='research'){runAction(buyResearch(state,catalog,id),'Technology unlocked');return;}
   if(action==='talent'){runAction(buyTalent(state,catalog,id),'Talent improved');return;}
-  if(action==='specialization'){runAction(setSpecialization(state,catalog,id),'Management specialization changed');return;}
+  if(action==='respec'){
+    if(userConfirm('Refund all talent points? You can immediately choose a new build for free.'))runAction(respecTalents(state),'All talent points refunded');
+    return;
+  }
   if(action==='invest'){runAction(buyInvestment(state,catalog,id),'Permanent investment acquired');return;}
   if(action==='layout-load'){
     if(userConfirm(`Rebuild the factory using blueprint "${state.layouts[Number(id)]?.name}"? This recycles current machines.`))runAction(loadLayout(state,catalog,Number(id)),'Blueprint rebuilt');return;
