@@ -146,3 +146,23 @@
 .factory-node.power-alert-focus{border-color:#ffcc7e!important;box-shadow:0 0 0 3px #ffaa4b80,0 0 26px 5px #ffaa4b3d!important;z-index:3}
 #overview .factory-health-list{margin-bottom:14px}
 #overview .factory-health-list button{white-space:normal}
+
+/* Full-scale career paths: nine preparatory tiers and a 50th-point capstone. */
+.talent-map{min-height:1900px}
+.talent-node-grid{grid-template-rows:repeat(10,190px)}
+.talent-links{height:1900px}
+.talent-branch.career-locked{border-top-style:dashed}
+.talent-branch.career-locked .talent-node:not(.learned){opacity:.53}
+.talent-branch .talent-tree-header small{line-height:1.5}
+.warehouse-node{min-height:255px}
+.warehouse-node .port-set.right{top:80px;gap:13px}
+.warehouse-node .port-set.left{top:80px}
+.orders-summary{padding:10px 12px;margin-bottom:13px;background:#13283a;border:1px solid #38556b;border-radius:9px}
+.orders-summary strong,.orders-summary small{display:block}
+.orders-summary small{font-size:11px;margin-top:5px;color:#b5c7d7}
+.urgent-order{border-left:3px solid #79b4cd}
+.urgent-order.urgent{border-left-color:#ed9c67;background:#30292a}
+.order-deadline{margin:10px 0;font-size:12px;color:#d7e9f2}
+.order-deadline .progress{height:7px;margin-top:7px}
+.urgent-order.urgent .order-deadline{color:#ffcc9a}
+.urgent-order.urgent .order-deadline .progress>span{background:#e79b66}
