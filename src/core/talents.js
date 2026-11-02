@@ -164,10 +164,10 @@ export function talentStatus(state,catalog,id){
   if(level<rule.level)return {enabled:false,reason:`Unlocks at Factory Level ${rule.level}`};
   const spent=tree.nodes.reduce((sum,n)=>sum+(state.talents[n.id]||0),0);
   if(spent<rule.spent)return {enabled:false,reason:`Spend ${rule.spent-spent} more point(s) in this tree`};
-  if(node.requires?.length&&!node.requires.some(parent=>(state.talents[parent]||0)>0))
-    return {enabled:false,reason:'Requires one linked earlier talent'};
   if(node.choice&&tree.nodes.some(peer=>peer.id!==node.id&&peer.choice===node.choice&&(state.talents[peer.id]||0)>0))
     return {enabled:false,reason:'Mutually exclusive: refund your other doctrine to switch'};
+  if(node.requires?.length&&!node.requires.some(parent=>(state.talents[parent]||0)>0))
+    return {enabled:false,reason:'Requires one linked earlier talent'};
   return {enabled:true,reason:'Ready to learn'};
 }
 export function refundTalents(state){state.talents={};}
