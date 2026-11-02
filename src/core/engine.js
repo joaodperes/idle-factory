@@ -105,7 +105,7 @@ function produceOneSecond(state,catalog,dt,offlineFactor){
     const def=defs[node.kind];
     if(!node.enabled||!def||!def.output)continue;
     const efficiencyFactor=efficiency.get(node.id)||0;
-    const speed=(1+0.4*(node.level-1)+0.15*getTalent(state,'precision'))*(getResearch(state,'robotics')?1.5:1);
+    const speed=(1+0.5*(node.level-1)+0.15*getTalent(state,'precision'))*(getResearch(state,'robotics')?1.5:1);
     let factor=speed*efficiencyFactor*offlineFactor;
     const inputs=def.inputs||{};
     for(const [resource,need] of Object.entries(inputs)){
