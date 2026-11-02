@@ -29,9 +29,9 @@ export function defaultState() {
     version:3, credits:900, data:0, angels:0, totalAngels:0,
     runRevenue:0, lifetimeRevenue:0, contractsFilled:0, runContracts:0,
     xp:0, elapsed:0, runElapsed:0, lastSeen:Date.now(),
-    specialization:null, talents:{}, investments:{}, research:{},
+    specialization:null, talents:{}, careerTree:null, completedCareers:[], investments:{}, research:{},
     nodes:starterGraph().nodes, edges:starterGraph().edges, nextId:3,
-    autoSell:{metal:true}, contractRuns:{}, dailyContracts:{}, researchLicenses:0, selectedNode:'n1', layouts:[],
+    autoSell:{metal:true}, contractRuns:{}, dailyContracts:{}, researchLicenses:0, orders:[], orderClock:0, nextOrderAt:0, orderSerial:1, orderStats:{fulfilled:0,expired:0}, selectedNode:'n1', layouts:[],
     stats:{resets:0, clicks:0}, onboarding:false, tutorialStep:0
   };
 }
@@ -44,9 +44,22 @@ export function sanitizeSave(raw, catalog) {
   for (const k of ['contractsFilled','runContracts','nextId']) s[k]=integer(raw[k],s[k]);
   // Previous specialization choices are deprecated; no tree is selected by default.
   s.specialization=null;
+  s.careerTree=typeof raw.careerTree==='string'&&catalog.talents[raw.careerTree]?raw.careerTree:null;
+  s.completedCareers=Array.isArray(raw.completedCareers)?[...new Set(raw.completedCareers.filter(id=>typeof id==='string'&&catalog.talents[id]))]:[];
   const allowedTalents = Object.values(catalog.talents).flatMap(branch=>branch.nodes);
   for (const t of allowedTalents) s.talents[t.id] = integer(asObject(raw.talents)[t.id],0,t.max);
   s.researchLicenses=integer(raw.researchLicenses,0,100000);
+  s.orderClock=number(raw.orderClock,0,1e12);
+  s.nextOrderAt=number(raw.nextOrderAt,0,1e12);
+  s.orderSerial=integer(raw.orderSerial,1,1e7)||1;
+  s.orderStats={fulfilled:integer(asObject(raw.orderStats).fulfilled),expired:integer(asObject(raw.orderStats).expired)};
+  s.orders=(Array.isArray(raw.orders)?raw.orders:[]).slice(0,8).flatMap(o=>{
+    if(!o||typeof o.id!=='string'||!/^order-[0-9]+$/.test(o.id))return [];
+    if(!catalog.contracts.some(c=>c.id===o.templateId&&c.resource===o.resource))return [];
+    const expiresAt=number(o.expiresAt,0,1e12),createdAt=number(o.createdAt,0,1e12);
+    if(expiresAt<=createdAt||expiresAt<=s.orderClock)return [];
+    return [{id:o.id,templateId:o.templateId,resource:o.resource,amount:number(o.amount,1,1e9),reward:number(o.reward,1,1e10),xp:number(o.xp,0,1e8),createdAt,expiresAt}];
+  });
   const rawDaily=asObject(raw.dailyContracts);
   s.dailyContracts={};
   for(const def of catalog.contracts){const date=rawDaily[def.id];if(typeof date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(date))s.dailyContracts[def.id]=date;}
