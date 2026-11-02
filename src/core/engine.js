@@ -1,5 +1,8 @@
 /** Deterministic discrete-time factory engine. All production flows through saved graph edges. */
 const OUTPUT_LIMIT=120;
+const recentMarketSales=new WeakMap();
+/** Sales made during the most recent simulation update (not cumulative inventory). */
+export function marketActivity(node){return recentMarketSales.get(node)||{units:0,revenue:0};}
 const BASE_LINK_RATE=3;
 const BRANCH={lean:'engineer',precision:'engineer',grid:'engineer',routing:'architect',storage:'architect',automation:'architect',pricing:'strategist',negotiation:'strategist',seed:'strategist'};
 const getTalent=(s,id)=>BRANCH[id]===s.specialization?(s.talents[id]||0):0;
@@ -18,14 +21,17 @@ export function price(state,catalog,resource){
 export function sell(state,catalog,resource,amount){
   let remaining=amount;
   let sold=0;
+  const unitPrice=price(state,catalog,resource);
   for(const node of state.nodes){
     if(node.kind!=='market')continue;
     const take=Math.min(remaining,node.buffer[resource]||0);
     if(take<=0)continue;
     node.buffer[resource]-=take;remaining-=take;sold+=take;
+    const activity=marketActivity(node);
+    recentMarketSales.set(node,{units:activity.units+take,revenue:activity.revenue+take*unitPrice});
     if(remaining<=0)break;
   }
-  if(sold>0){const earned=sold*price(state,catalog,resource);earn(state,earned);}
+  if(sold>0)earn(state,sold*unitPrice);
   return sold;
 }
 export function earn(state,amount,bonusXp=0){
@@ -107,6 +113,7 @@ function produceOneSecond(state,catalog,dt,offlineFactor){
   state.elapsed+=dt;state.runElapsed+=dt;
 }
 export function simulate(state,catalog,seconds,{offline=false}={}){
+  for(const node of state.nodes)if(node.kind==='market')recentMarketSales.set(node,{units:0,revenue:0});
   let duration=Math.max(0,Math.min(offline?8*3600:3600,seconds));
   const efficiency=offline?(getResearch(state,'offline')?1:0.5):1;
   while(duration>1e-7){const dt=Math.min(1,duration);produceOneSecond(state,catalog,dt,efficiency);duration-=dt;}
