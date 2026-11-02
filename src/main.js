@@ -1,10 +1,11 @@
 import {loadCatalog} from './core/catalog.js';
 import {SAVE_KEY,loadLocal,sanitizeSave,serializeSave,defaultState} from './core/state.js';
 import {fmt,timeLabel} from './core/format.js';
-import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,sell,marketActivity} from './core/engine.js';
-import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility} from './core/graph.js';
+import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,sell,marketActivity,productionActivity,maxProductionRate} from './core/engine.js';
+import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility,facilityLimit,nextCapacityMilestone} from './core/graph.js';
 import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,buyTalent,buyInvestment,resetCompany,saveLayout,loadLayout,setSpecialization} from './core/actions.js';
 import {TUTORIAL_STEPS,advanceTutorial,tutorialPort} from './core/tutorial.js';
+import {routeConnection,routePath} from './core/router.js';
 
 const catalog=await loadCatalog();
 const loaded=loadLocal(catalog);
@@ -39,18 +40,24 @@ function setTab(tab){
 function renderMetrics(){
   const g=gridStatus(state,catalog);
   const underpowered=[...g.groups.values()].filter(group=>group.demand>group.supply+0.000001).length;
-  const powerNote=underpowered?`⚠ ${underpowered} underpowered grid${underpowered>1?'s':''}`:`${fmt(Math.max(0,g.supply-g.demand))} spare`;
-  const powerMetric=['POWER · PRODUCED / USED',`${fmt(g.supply)} / ${fmt(g.demand)}`,powerNote,underpowered>0];
-  const values=inTutorial()? [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],powerMetric] : [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],['RESEARCH',fmt(state.data)],powerMetric,['CAPACITY',`${usedSlots(state,catalog)} / ${totalSlots(state)}`],['ANGELS',fmt(state.angels)]];
-  $('#metrics').innerHTML=values.map(([name,value,note,warning])=>`<div class="metric ${warning?'metric-warning':''}" ${note?'title="Power generated / consumed. Disconnected grids are evaluated separately."':''}><small>${name}</small><strong>${value}</strong>${note?`<small class="metric-note">${note}</small>`:''}</div>`).join('');
+  const available=Math.max(0,g.supply-g.demand);
+  const note=underpowered?`⚠ ${underpowered} isolated grid${underpowered===1?'':'s'} short of power`:`${fmt(g.demand)} used · ${fmt(available)} spare`;
+  const powerMetric=['POWER · AVAILABLE / TOTAL',`${fmt(available)} / ${fmt(g.supply)}`,note,underpowered>0];
+  const values=inTutorial()? [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],powerMetric]
+    : [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],['RESEARCH',fmt(state.data)],powerMetric,['CAPACITY',`${usedSlots(state,catalog)} / ${totalSlots(state)}`],['ANGELS',fmt(state.angels)]];
+  $('#metrics').innerHTML=values.map(([name,value,note,warning])=>`<div class="metric ${warning?'metric-warning':''}" ${note?'title="Available / generated power. Separate electrical grids cannot share spare power until connected."':''}><small>${name}</small><strong>${value}</strong>${note?`<small class="metric-note">${note}</small>`:''}</div>`).join('');
 }
 function renderFacilities(){
-  const step=TUTORIAL_STEPS[state.tutorialStep||0];
+  const step=TUTORIAL_STEPS[state.tutorialStep||0],milestone=nextCapacityMilestone(state);
   const list=Object.entries(catalog.facilities).filter(([kind])=>!inTutorial() || kind===step?.build).map(([kind,def])=>{
-    const unlocked=state.runRevenue>=def.unlock;
-    const cost=nodeCost(kind,state,catalog);
-    const allowed=unlocked&&state.credits>=cost&&usedSlots(state,catalog)+def.slots<=totalSlots(state);
-    return `<div class="build-item ${!unlocked?'locked':''} ${inTutorial()&&kind===step?.build?'tutorial-highlight':''}"><span class="build-icon" style="--accent:${def.color}">${def.icon}</span><div class="build-copy"><strong>${safe(def.name)}</strong><small>${unlocked?`${def.slots} slots · ${money(cost)}`:`Unlock ${money(def.unlock)} revenue`}</small></div><button data-action="build" data-kind="${kind}" ${allowed?'':'disabled'} title="${safe(def.description)}">＋</button></div>`;
+    const unlocked=state.runRevenue>=def.unlock,cost=nodeCost(kind,state,catalog);
+    const owned=state.nodes.filter(n=>n.kind===kind).length,limit=facilityLimit(state,kind);
+    const allowed=unlocked&&owned<limit&&state.credits>=cost&&usedSlots(state,catalog)+def.slots<=totalSlots(state);
+    const description=unlocked?`${owned}/${limit} · ${def.slots} slots · ${money(cost)}`
+      :`Unlock at ${money(def.unlock)} revenue (${money(Math.max(0,def.unlock-state.runRevenue))} remaining)`;
+    const tip=!unlocked?`Earn ${money(def.unlock)} revenue in this company to unlock ${def.name}.`
+      :owned>=limit?`Limit reached. Next expansion: ${milestone?money(milestone)+' run revenue':'Industrial Estate investment'}.`:def.description;
+    return `<div class="build-item ${!unlocked?'locked':''} ${inTutorial()&&kind===step?.build?'tutorial-highlight':''}"><span class="build-icon" style="--accent:${def.color}">${def.icon}</span><div class="build-copy"><strong>${safe(def.name)}</strong><small title="${safe(tip)}">${description}</small></div><button data-action="build" data-kind="${kind}" ${allowed?'':'disabled'} title="${safe(tip)}">＋</button></div>`;
   }).join('');
   $('#facility-list').innerHTML=list;
 }
@@ -64,7 +71,7 @@ function nodeMarkup(node){
     <div class="node-head" data-drag="${node.id}"><span class="node-icon">${def.icon}</span><span><strong>${safe(def.name)}</strong><small>UNIT ${node.id.toUpperCase()} · LV ${node.level}</small></span></div>
     <div class="node-body"><div class="node-throughput" data-node-rate="${node.id}">Calculating…</div><div class="node-buffer" data-node-stock="${node.id}">0 stored</div></div>
     <div class="port-set left">${materialIn.map(r=>port('in',r,r==='any'?'Accept any product':`Input: ${r}`)).join('')}${powerIn?port('in','power','Power input'):''}</div>
-    <div class="port-set right">${out?port('out',out,`Output: ${out}`):''}${isMarket?'':port('out','power','Power network output')}</div>
+    <div class="port-set right">${out?port('out',out,`Output: ${catalog.resources[out]?.name||out}`):''}${isMarket?'':port('out','power',def.power?'Generated power supply': 'Power bus relay (shares grid; does not generate electricity)')}</div>
     <button class="node-select" data-action="select" data-id="${node.id}" aria-label="Inspect ${safe(def.name)}">Inspect ↗</button>
   </div>`;
 }
@@ -79,18 +86,23 @@ function portCenter(nodeId,side,resource){
 }
 function drawLinks(){
   const svg=$('#links');
+  const obstacles=state.nodes.map(n=>{
+    const element=document.querySelector(`[data-node-id="${n.id}"]`);
+    if(!element)return {x:n.x,y:n.y,width:207,height:158};
+    const rect=element.getBoundingClientRect();
+    return {x:n.x,y:n.y,width:rect.width/canvasZoom,height:rect.height/canvasZoom};
+  });
   const curves=state.edges.map(edge=>{
     const from=byId(edge.from),to=byId(edge.to);if(!from||!to)return '';
     const a=portCenter(from.id,'out',edge.resource),b=portCenter(to.id,'in',edge.resource);
     if(!a||!b)return '';
-    const dx=Math.max(55,Math.abs(b.x-a.x)*0.42);
-    const d=`M${a.x},${a.y} C${a.x+dx},${a.y} ${b.x-dx},${b.y} ${b.x},${b.y}`;
+    const d=routePath(routeConnection(a,b,obstacles));
     const color=edge.resource==='power'?'#f2db3d':(catalog.resources[edge.resource]?.color||'#63b9b7');
-    return `<path d="${d}" class="edge-back"/><path d="${d}" stroke="${color}" stroke-width="${edge.resource==='power'?3.4:2.8}" ${edge.resource==='power'?'stroke-dasharray="9 6"':''} fill="none" stroke-linecap="round"/><path d="${d}" class="edge-hit" data-edge="${edge.id}" aria-label="Remove ${edge.resource} connection"><title>${edge.resource}: ${nodeDef(from).name} → ${nodeDef(to).name} (click to disconnect)</title></path>`;
+    const resourceName=edge.resource==='power'?'Power grid':(catalog.resources[edge.resource]?.name||edge.resource);
+    return `<path d="${d}" class="edge-back"/><path d="${d}" stroke="${color}" stroke-width="${edge.resource==='power'?3.4:2.8}" ${edge.resource==='power'?'stroke-dasharray="9 6"':''} fill="none" stroke-linecap="round"/><path d="${d}" class="edge-hit" data-edge="${edge.id}" aria-label="Remove ${resourceName} connection"><title>${resourceName}: ${nodeDef(from).name} → ${nodeDef(to).name} (click to disconnect)</title></path>`;
   }).join('');
   svg.innerHTML=curves;
 }
-
 function renderGraph(){
   $('#nodes').innerHTML=state.nodes.map(nodeMarkup).join('');
   drawLinks();
@@ -101,23 +113,33 @@ function updateNodeStats(){
   for(const n of state.nodes){
     const def=nodeDef(n),power=grid.efficiency.get(n.id)||0;
     const amount=Object.values(n.buffer).reduce((a,b)=>a+b,0);
-    let label;
-    if(!n.enabled)label='Paused';
-    else if(def.power)label=`⚡ +${fmt(def.power*(1+0.2*(n.level-1)))} power`;
+    const activity=productionActivity(n),maxRate=maxProductionRate(state,n,catalog),actual=activity.rate;
+    let label,bufferText='';
+    if(!n.enabled)label='⏸ Paused';
+    else if(def.power)label=`⚡ +${fmt(def.power*(1+0.2*(n.level-1)))} power generation`;
     else if(n.kind==='market'){
-      const sale=marketActivity(n);
-      const deliveries=state.edges.filter(e=>e.to===n.id&&e.resource!=='power');
+      const sale=marketActivity(n),deliveries=state.edges.filter(e=>e.to===n.id&&e.resource!=='power');
       label=sale.units>0?`✓ Sold ${fmt(sale.units)} · +${money(sale.revenue)}`
         :!deliveries.length?'⚠ No material route'
         :amount>0?'● Goods ready to sell'
         :deliveries.some(e=>state.autoSell[e.resource])?'◌ Waiting for auto-sale goods':'◌ Waiting for delivered goods';
     }
-    else if(power<0.99)label=`⚠ ${fmt(power*100,0)}% grid power`;
-    else if(def.inputs && Object.entries(def.inputs).some(([r,q])=>(n.buffer[r]||0)<q))label='◌ Input constrained';
-    else label=`● ${fmt(def.rate*(1+0.25*(n.level-1)))}/${def.output==='data'?'s data':'s'}`;
+    else if(def.output){
+      const shortInput=Object.entries(def.inputs||{}).find(([r,q])=>(n.buffer[r]||0)<q*0.8);
+      const filled=def.output!=='data' && (n.buffer[def.output]||0)>capacity(state,n)-0.15;
+      const rateText=`${fmt(actual)}/${fmt(maxRate)} ${def.output==='data'?'data':'units'}/s`;
+      label=power<0.99?`⚠ Power-limited · ${rateText}`
+        :filled?`⚠ Output full · ${rateText}`
+        :shortInput?`◌ ${catalog.resources[shortInput[0]]?.name||shortInput[0]} limited · ${rateText}`
+        :`● ${rateText}`;
+    }else label='● Ready';
+    if(n.kind==='market')bufferText=`${fmt(amount)} stored · ${state.autoSell.metal?'metal auto-sell ON':'manual metal sales'}`;
+    else if(def.output&&def.output!=='data')bufferText=`${catalog.resources[def.output]?.name||def.output}: ${fmt(n.buffer[def.output]||0)} stored`;
+    else if(def.output==='data')bufferText='Research data sent directly to R&D';
+    else bufferText='Power distribution grid';
     const a=document.querySelector(`[data-node-rate="${n.id}"]`),b=document.querySelector(`[data-node-stock="${n.id}"]`);
-    if(a)a.textContent=label;
-    if(b)b.textContent=n.kind==='market'?`${fmt(amount)} stored · ${state.autoSell.metal?'metal auto-sell ON':'manual sales'}`:`${fmt(amount)} buffered`;
+    if(a){a.textContent=label;a.title=label;}
+    if(b){b.textContent=bufferText;b.title=bufferText;}
   }
   $('#network-summary').textContent=`${state.nodes.length} facilities · ${state.edges.length} links`;
 }
@@ -125,15 +147,15 @@ function renderInspector(){
   const area=$('#inspector');const node=byId(state.selectedNode);
   if(inTutorial()){area.innerHTML='';return;}
   if(!node){area.innerHTML='<div class="card"><h2>Facility inspector</h2><p class="muted">Select a facility to inspect it.</p></div>';return;}
-  const def=nodeDef(node),stock=Object.entries(node.buffer).filter(([,q])=>q>0.005).map(([r,q])=>`<div class="inventory-row"><span>${safe(catalog.resources[r]?.name||r)}</span><strong>${fmt(q)}</strong></div>`).join('')||'<p class="muted tiny">No materials buffered</p>';
+  const def=nodeDef(node),tracked=new Set([...Object.keys(def.inputs||{}),...(def.output&&def.output!=='data'?[def.output]:[]),...Object.entries(node.buffer).filter(([,qty])=>qty>0.005).map(([resource])=>resource)]),stock=[...tracked].map(resource=>`<div class="inventory-row"><span>${safe(catalog.resources[resource]?.name||resource)}${def.output===resource?' (output)':''}</span><strong>${fmt(node.buffer[resource]||0)}</strong></div>`).join('')||'<p class="muted tiny">No materials buffered</p>';
   const inputs=Object.keys(def.inputs||{}).map(r=>`${catalog.resources[r].name}: ${fmt(def.inputs[r])}/s`).join(' · ');
   const upgrade=upgradeCost(node,catalog);
   const routes=state.edges.filter(e=>e.from===node.id||e.to===node.id).map(e=>{
-    const other=byId(e.from===node.id?e.to:e.from);return `<div class="route-row"><span>${e.from===node.id?'→':'←'} ${safe(other?nodeDef(other).name:'Unknown')} <small>${safe(e.resource)}</small></span><button data-action="unlink" data-id="${e.id}" title="Disconnect">×</button></div>`;
+    const other=byId(e.from===node.id?e.to:e.from);return `<div class="route-row"><span>${e.from===node.id?'→':'←'} ${safe(other?nodeDef(other).name:'Unknown')} <small>${safe(catalog.resources[e.resource]?.name||(e.resource==='power'?'Power grid':e.resource))}</small></span><button data-action="unlink" data-id="${e.id}" title="Disconnect">×</button></div>`;
   }).join('')||'<p class="muted tiny">No connections yet</p>';
-  area.innerHTML=`<div class="card inspector-card"><div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output|| (def.power?`${def.power} power`:'None · receives goods')}</strong></div>
+  area.innerHTML=`<div class="card inspector-card"><div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Facilities of this type</span><strong>${state.nodes.filter(n=>n.kind===node.kind).length} / ${facilityLimit(state,node.kind)}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output?(catalog.resources[def.output]?.name||def.output): (def.power?`${def.power} electricity`:'None · receives goods')}</strong></div>
     <div class="inspector-actions"><button data-action="upgrade" data-id="${node.id}" ${state.credits>=upgrade&&node.level<20?'':'disabled'}>↑ Upgrade · ${money(upgrade)}</button><button data-action="toggle" data-id="${node.id}">${node.enabled?'Pause':'Resume'}</button><button class="danger" data-action="demolish" data-id="${node.id}">Recycle</button></div>
-    <h3>Local inventory <small>${fmt(capacity(state,node))} cap per item</small></h3>${stock}<h3>Connections</h3>${routes}<p class="tiny muted">Ports: blue-green = material; gold = power. Select an output then a matching input to connect.</p></div>`;
+    <h3>Local inventory <small>${fmt(capacity(state,node))} cap per item</small></h3>${stock}<h3>Connections</h3>${routes}<p class="tiny muted">Material ports move goods. Yellow ports connect machines to a shared electrical grid. Powered machines may relay electricity but cannot generate it.</p></div>`;
 }
 function renderOverview(){
   const g=gridStatus(state,catalog);
@@ -167,7 +189,10 @@ function renderManagement(){
   }).join('');
 }
 function renderResearch(){
-  $('#research-list').innerHTML=Object.entries(catalog.research).map(([id,r])=>{
+  const lab=catalog.facilities.lab;
+  const labCount=state.nodes.filter(n=>n.kind==='lab').length;
+  const notice=labCount?`<div class="card"><strong>Research Lab built</strong><p class="muted tiny">Connect electricity and a Devices input. Research Data reaches this tab automatically.</p></div>`:`<div class="card"><strong>Research Lab required</strong><p class="muted tiny">Unlock at ${money(lab.unlock)} company revenue (${money(Math.max(0,lab.unlock-state.runRevenue))} remaining), then build it for ${money(lab.cost)}. Supply Devices and 3 power.</p></div>`;
+  $('#research-list').innerHTML=notice+Object.entries(catalog.research).map(([id,r])=>{
     const owned=state.research[id];const requirements=r.requires.filter(dep=>!state.research[dep]);
     return `<article class="card research-item ${owned?'completed':''}"><div class="eyebrow">R&D PROTOCOL</div><h2>${safe(r.name)}</h2><p>${safe(r.description)}</p><div class="research-footer"><span>${owned?'✓ UNLOCKED':`${fmt(r.cost)} data`}</span><button data-action="research" data-id="${id}" ${!owned&&requirements.length===0&&state.data>=r.cost?'':'disabled'}>${owned?'Completed':requirements.length?'Requires previous tech':'Research'}</button></div></article>`;
   }).join('');
