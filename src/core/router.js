@@ -86,7 +86,7 @@ function gridRoute(a,b,rects){
       const middle=[];let k=current.k;
       while(k){const s=prev.get(k);if(!s)break;middle.push(point(s.x*STEP,s.y*STEP));k=s.from;}
       middle.reverse();
-      const points=[...current.start.via,...middle.slice(1),...end.via.slice(0,-1).reverse(),b];
+      const points=[...current.start.via,...middle,...end.via.slice(1,-1).reverse(),b];
       return simplify(points);
     }
     for(let d=0;d<4;d++){
