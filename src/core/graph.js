@@ -1,7 +1,7 @@
 import {researchModifier} from './research.js';
 import {factoryLevel,talentModifier} from './talents.js';
 /** Limits preserve specialization without deleting existing saved facilities. */
-export const BASE_FACILITY_LIMITS=Object.freeze({generator:2,solar:2,mine:3,smelter:3,press:2,etcher:2,assembler:1,lab:1,market:2});
+export const BASE_FACILITY_LIMITS=Object.freeze({generator:2,solar:2,mine:3,smelter:3,press:2,etcher:2,assembler:1,lab:1,market:2,warehouse:2,fusion:1,quantumlab:1});
 export const CAPACITY_MILESTONES=Object.freeze([5000,20000,80000,300000]);
 export function facilityLimit(state,kind){
   const base=BASE_FACILITY_LIMITS[kind]??2;
@@ -30,8 +30,9 @@ export function canConnect(state,catalog,fromId,toId,resource){
     if(!source.power||!target.demand)return 'Only Power Stations and Solar Arrays can supply electricity. Connect their yellow outputs directly to a machine power input.';
     return null;
   }
-  if(!catalog.resources[resource]||catalog.facilities[a.kind].output!==resource)return 'Source does not produce that material.';
-  if(b.kind!=='market'&&!catalog.facilities[b.kind].inputs?.[resource])return 'Target cannot consume that material.';
+  if(!catalog.resources[resource]||resource==='data')return 'Invalid transferable material.';
+  if(a.kind!=='warehouse'&&catalog.facilities[a.kind].output!==resource)return 'Source does not produce that material.';
+  if(b.kind!=='market'&&b.kind!=='warehouse'&&!catalog.facilities[b.kind].inputs?.[resource])return 'Target cannot consume that material.';
   return null;
 }
 export function addEdge(state,catalog,from,to,resource){
@@ -44,6 +45,7 @@ export function addFacility(state,catalog,kind,x=450,y=450){
   const facility=catalog.facilities[kind];
   if(!facility)return 'Unknown facility';
   if(state.runRevenue<facility.unlock)return `Unlocks at ${facility.unlock} run revenue`;
+  if(facility.talentUnlock && !(state.talents?.[facility.talentUnlock]>0))return 'Requires career talent: '+facility.talentUnlock;
   if(state.nodes.length>=120)return 'Maximum facility count reached';
   const owned=state.nodes.filter(node=>node.kind===kind).length;
   if(owned>=facilityLimit(state,kind))return `Maximum ${facility.name} facilities reached (${owned}/${facilityLimit(state,kind)}). Earn revenue or invest in Industrial Estate to expand.`;
