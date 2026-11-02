@@ -55,6 +55,7 @@ export function resetCompany(state){
   next.investments={...state.investments};next.talents={...state.talents};
   next.specialization=null;next.xp=state.xp;
   next.lifetimeRevenue=state.lifetimeRevenue;next.contractsFilled=state.contractsFilled;
+  next.dailyContracts={...state.dailyContracts};
   next.elapsed=state.elapsed;next.layouts=state.layouts;
   next.stats={...state.stats,resets:state.stats.resets+1};
   const restored=operatingGraph();
