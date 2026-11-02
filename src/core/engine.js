@@ -1,4 +1,4 @@
-import {tickOrders,fulfillOrder,availableStock} from './orders.js';
+import {tickOrders,fulfillOrder,availableStock,reserveStoredStock,reserveStoredResource} from './orders.js';
 import {researchModifier} from './research.js';
 import {factoryLevel,freeTalentPoints,talentModifier} from './talents.js';
 /** Deterministic discrete-time factory engine. All production flows through saved graph edges. */
@@ -90,6 +90,8 @@ export function completeContract(state,catalog,id){return fulfillOrder(state,cat
 function produceOneSecond(state,catalog,dt,offlineFactor){
   const defs=catalog.facilities, {efficiency}=gridStatus(state,catalog);
   const rate=linkRate(state)*dt;
+  // Pre-existing warehouse inventory must be committed before downstream routes draw from it.
+  reserveStoredStock(state);
   const lookup=new Map(state.nodes.map(n=>[n.id,n]));
   for(const edge of state.edges){
     if(edge.resource==='power')continue;
@@ -100,6 +102,8 @@ function produceOneSecond(state,catalog,dt,offlineFactor){
     const qty=Math.min(available,free,rate);
     if(qty>0){
       from.buffer[edge.resource]=available-qty;to.buffer[edge.resource]=(to.buffer[edge.resource]||0)+qty;
+      // Commit goods immediately on arrival, before later graph edges can consume them.
+      reserveStoredResource(state,to,edge.resource);
       const diag=recentDiagnostics.get(to);
       if(diag)diag.received[edge.resource]=(diag.received[edge.resource]||0)+qty;
     }
@@ -153,8 +157,12 @@ export function simulate(state,catalog,seconds,{offline=false}={}){
   let duration=Math.max(0,Math.min(offline?8*3600:3600,seconds));
   const efficiency=offline?Math.min(1,0.5+researchModifier(state,'offlinePower')):1;
   const simulated=duration;
-  while(duration>1e-7){const dt=Math.min(1,duration);produceOneSecond(state,catalog,dt,efficiency);duration-=dt;}
-  if(!offline&&state.onboarding)tickOrders(state,catalog,simulated);
+  while(duration>1e-7){
+    const dt=Math.min(1,duration);
+    if(!offline&&state.onboarding)tickOrders(state,catalog,dt);
+    produceOneSecond(state,catalog,dt,efficiency);
+    duration-=dt;
+  }
   for(const node of state.nodes){
     const def=catalog.facilities[node.kind];if(!def?.output)continue;
     const activity=productionActivity(node);
