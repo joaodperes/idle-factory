@@ -110,7 +110,7 @@ export function routeConnection(from,to,facilities){
   const rects=facilities.map(inflate);
   const start=point(from.x+STUB,from.y),end=point(to.x-STUB,to.y);
   const center=candidatePaths(start,end,rects)||gridRoute(start,end,rects);
-  if(!center)return [from,to]; // Only for overlapping/unroutable layouts.
+  if(!center)return []; // The destination is physically obstructed: never draw through another card.
   return simplify([from,...center,to]);
 }
 /** Render smooth corners without allowing them to cut across any card (12px margin). */
