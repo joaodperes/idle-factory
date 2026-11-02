@@ -1,7 +1,7 @@
 import {loadCatalog} from './core/catalog.js';
 import {SAVE_KEY,loadLocal,sanitizeSave,serializeSave,defaultState} from './core/state.js';
 import {fmt,timeLabel} from './core/format.js';
-import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,sell,marketActivity,productionActivity,productionDiagnostics,maxProductionRate} from './core/engine.js';
+import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,sell,marketActivity,productionActivity,productionDiagnostics,maxProductionRate,generatorOutput} from './core/engine.js';
 import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility,facilityLimit,nextCapacityMilestone,nextCapacityLevel} from './core/graph.js';
 import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,publishResearch,buyTalent,buyInvestment,resetCompany,saveLayout,loadLayout,respecTalents} from './core/actions.js';
 import {TUTORIAL_STEPS,advanceTutorial,tutorialPort} from './core/tutorial.js';
@@ -141,7 +141,7 @@ function updateNodeStats(){
     const activity=productionActivity(n),maxRate=maxProductionRate(state,n,catalog),actual=activity.rate;
     let label,bufferText='';
     if(!n.enabled)label='⏸ Paused';
-    else if(def.power)label=`⚡ +${fmt(def.power*(1+0.5*(n.level-1))*(1+talentModifier(state,'powerGeneration')))} generated`;
+    else if(def.power)label=`⚡ +${fmt(generatorOutput(state,n,catalog))} generated`;
     else if(n.kind==='market'){
       const sale=marketActivity(n),deliveries=state.edges.filter(e=>e.to===n.id&&e.resource!=='power');
       label=sale.units>0?`✓ Sold ${fmt(sale.units)} · +${money(sale.revenue)}`
@@ -214,8 +214,8 @@ function renderInspector(){
   const def=nodeDef(node),status=diagnosis(node),stats=productionActivity(node);
   const ideal=maxProductionRate(state,node,catalog),util=ideal?Math.min(100,100*stats.rate/ideal):100;
   const upgrade=upgradeCost(node,catalog);
-  const base=def.output?ideal:def.power?def.power*(1+0.5*(node.level-1))*(1+talentModifier(state,'powerGeneration')):capacity(state,node);
-  const improved=def.output?maxProductionRate(state,{...node,level:node.level+1},catalog):def.power?def.power*(1+0.5*node.level)*(1+talentModifier(state,'powerGeneration')):capacity(state,{...node,level:node.level+1});
+  const base=def.output?ideal:def.power?generatorOutput(state,node,catalog):capacity(state,node);
+  const improved=def.output?maxProductionRate(state,{...node,level:node.level+1},catalog):def.power?generatorOutput(state,{...node,level:node.level+1},catalog):capacity(state,{...node,level:node.level+1});
   const unit=def.output?' /s':def.power?' power':' items';
   const inv=[...new Set([...Object.keys(def.inputs||{}),...(def.output&&def.output!=='data'?[def.output]:[])])];
   const stock=inv.map(id=>`<div class="diagnostic-row"><span>${safe(catalog.resources[id]?.name||id)}</span><strong>${fmt(node.buffer[id]||0)} stored</strong></div>`).join('')||'<p class="muted tiny">No material inventory</p>';
@@ -346,9 +346,9 @@ function renderInvestors(){
   const gain=prestigeGain(state),value=companyValue(state,catalog);
   $('#valuation').innerHTML=`<div class="valuation-big">${money(value)}</div><div class="stat-pair"><span>Revenue this company</span><strong>${money(state.runRevenue)}</strong></div><div class="stat-pair"><span>Contracts completed</span><strong>${state.runContracts}</strong></div><div class="stat-pair"><span>New angels on restart</span><strong class="highlight">+${fmt(gain)}</strong></div><div class="stat-pair"><span>Angel balance</span><strong>${fmt(state.angels)}</strong></div>`;
   $('#prestige-btn').disabled=gain<1;
-  $('#investment-list').innerHTML=Object.entries(catalog.investments).map(([id,item])=>{
+  $('#investment-list').innerHTML='<p class="muted tiny">Permanent upgrades are bought with <strong>Angels (◇)</strong>, not credits or Research Data. Earn Angels by seeking investment and restarting the company. Upgrades persist.</p>'+Object.entries(catalog.investments).map(([id,item])=>{
     const rank=state.investments[id]||0,cost=Math.ceil(item.cost*Math.pow(item.growth,rank));
-    return `<div class="investment-row"><div><strong>${safe(item.name)} <span class="rank">${rank}/${item.max}</span></strong><small>${safe(item.description)}</small></div><button data-action="invest" data-id="${id}" ${rank<item.max&&state.angels>=cost?'':'disabled'}>${rank>=item.max?'MAX':`${fmt(cost)} ◇`}</button></div>`;
+    return `<div class="investment-row"><div><strong>${safe(item.name)} <span class="rank">${rank}/${item.max}</span></strong><small>${safe(item.description)}</small></div><button data-action="invest" data-id="${id}" ${rank<item.max&&state.angels>=cost?'':'disabled'}>${rank>=item.max?'MAX':`${fmt(cost)} ◇ Angels`}</button></div>`;
   }).join('');
 }
 function renderStats(){
