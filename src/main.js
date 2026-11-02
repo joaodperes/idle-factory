@@ -6,6 +6,7 @@ import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility,facilityLimit,nex
 import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,publishResearch,buyTalent,buyInvestment,resetCompany,saveLayout,loadLayout,respecTalents} from './core/actions.js';
 import {TUTORIAL_STEPS,advanceTutorial,tutorialPort} from './core/tutorial.js';
 import {routeConnection,routePath} from './core/router.js';
+import {connectionsForMachine,connectionAppearance,validLinkFocus} from './core/link-focus.js';
 import {researchStatus,researchLicensingCost,researchLicensingReward,effectiveResearchCost} from './core/research.js';
 import {contractCapacity,availableStock} from './core/orders.js';
 import {INITIAL_CANVAS_WIDTH,INITIAL_CANVAS_HEIGHT,expandedWorkspace} from './core/workspace.js';
@@ -23,6 +24,9 @@ let practiceSnapshot=null; // Replays run in a disposable practice factory; play
 const MIN_CANVAS_ZOOM=0.05,MAX_CANVAS_ZOOM=1.75;
 let canvasZoom=1; // Canvas-only zoom, never browser/page zoom.
 let highlightedGrid=new Set();
+let isolateMachineLinks=true;
+let focusedLinkId=null;
+let hoveredLinkId=null;
 let canvasWidth=INITIAL_CANVAS_WIDTH,canvasHeight=INITIAL_CANVAS_HEIGHT;
 /** Resize the logical world and its SVG together, independently of zoom. */
 function resizeCanvas(extraX=0,extraY=0){
@@ -99,6 +103,34 @@ function portCenter(nodeId,side,resource){
   const rect=port.getBoundingClientRect(),origin=$('#editor-world').getBoundingClientRect();
   return {x:(rect.left+rect.width/2-origin.left)/canvasZoom,y:(rect.top+rect.height/2-origin.top)/canvasZoom};
 }
+
+/** Apply emphasis to existing SVG groups without recomputing obstacle routing on every hover. */
+function syncLinkHighlights(){
+  const focusCandidate=hoveredLinkId||focusedLinkId;
+  const active=state.edges.find(e=>e.id===focusCandidate);
+  const activeId=active?.id||null;
+  const byEdge=new Map(state.edges.map(e=>[e.id,e]));
+  const svg=$('#links');
+  for(const group of svg.querySelectorAll('.edge-group')){
+    const edge=byEdge.get(group.dataset.linkId);
+    if(!edge)continue;
+    const view=connectionAppearance(edge,state.selectedNode,activeId,isolateMachineLinks);
+    group.classList.toggle('related',view.related);
+    group.classList.toggle('dimmed',view.dimmed);
+    group.classList.toggle('focused',view.focused);
+  }
+  const activeGroup=activeId?[...svg.querySelectorAll('.edge-group')].find(g=>g.dataset.linkId===activeId):null;
+  if(activeGroup)svg.appendChild(activeGroup); // Keep the chosen link visible above coincident routes.
+  document.querySelectorAll('.factory-node').forEach(element=>{
+    element.classList.toggle('link-peer',!!active&&(element.dataset.nodeId===active.from||element.dataset.nodeId===active.to));
+  });
+  document.querySelectorAll('[data-link-row]').forEach(row=>row.classList.toggle('active',row.dataset.linkRow===activeId));
+  const toggle=$('#focus-links-toggle');
+  if(toggle){
+    toggle.setAttribute('aria-pressed',String(isolateMachineLinks));
+    toggle.textContent=isolateMachineLinks?'Focus links: On':'Focus links: Off';
+  }
+}
 function drawLinks(){
   const svg=$('#links');
   const obstacles=state.nodes.map(n=>{
@@ -112,18 +144,21 @@ function drawLinks(){
     const from=byId(edge.from),to=byId(edge.to);if(!from||!to)return '';
     const a=portCenter(from.id,'out',edge.resource),b=portCenter(to.id,'in',edge.resource);
     if(!a||!b)return '';
+    const group=`<g class="edge-group" data-link-id="${safe(edge.id)}">`;
+    const resourceName=edge.resource==='power'?'Electricity':(catalog.resources[edge.resource]?.name||edge.resource);
+    const title=safe(`${resourceName}: ${nodeDef(from).name} ${from.id.toUpperCase()} → ${nodeDef(to).name} ${to.id.toUpperCase()} (click to highlight)`);
     const route=routeConnection(a,b,obstacles);
     if(!route.length){
       blockedRoutes++;
-      return `<circle cx="${a.x+15}" cy="${a.y}" r="6" fill="#eb8b97" stroke="#f6d9d9" stroke-width="1.5" style="pointer-events:all"><title>Route blocked by another machine. Move machines apart to reveal this connection.</title></circle>`;
+      return `${group}<circle class="blocked-route" cx="${a.x+15}" cy="${a.y}" r="6" fill="#eb8b97" stroke="#f6d9d9" stroke-width="1.5"/><circle class="edge-blocked-hit" cx="${a.x+15}" cy="${a.y}" r="13" data-edge="${safe(edge.id)}"><title>${title} — Route obstructed: move machines apart.</title></circle></g>`;
     }
     const d=routePath(route);
     const color=edge.resource==='power'?'#f2db3d':(catalog.resources[edge.resource]?.color||'#63b9b7');
-    const resourceName=edge.resource==='power'?'Power grid':(catalog.resources[edge.resource]?.name||edge.resource);
-    return `<path d="${d}" class="edge-back"/><path d="${d}" stroke="${color}" stroke-width="${edge.resource==='power'?3.4:2.8}" ${edge.resource==='power'?'stroke-dasharray="9 6"':''} fill="none" stroke-linecap="round"/><path d="${d}" class="edge-hit" data-edge="${edge.id}" aria-label="Remove ${resourceName} connection"><title>${resourceName}: ${nodeDef(from).name} → ${nodeDef(to).name} (click to disconnect)</title></path>`;
+    return `${group}<path d="${d}" class="edge-back"/><path d="${d}" class="edge-line" stroke="${color}" stroke-width="${edge.resource==='power'?3.4:2.8}" ${edge.resource==='power'?'stroke-dasharray="9 6"':''} fill="none" stroke-linecap="round"/><path d="${d}" class="edge-hit" data-edge="${safe(edge.id)}"><title>${title}</title></path></g>`;
   }).join('');
   svg.innerHTML=curves;
   svg.dataset.blockedRoutes=String(blockedRoutes);
+  syncLinkHighlights();
 }
 function renderGraph(){
   resizeCanvas();
@@ -228,10 +263,27 @@ function renderInspector(){
     const got=diagnostic.seconds?(diagnostic.received[id]||0)/diagnostic.seconds:0;
     return `<div class="diagnostic-row"><span>${safe(catalog.resources[id]?.name||id)} received</span><strong>${fmt(got)}/s · ${fmt(node.buffer[id]||0)} stored</strong></div>`;
   }).join('');
-  const routes=state.edges.filter(e=>e.from===node.id||e.to===node.id).map(e=>{
-    const linked=byId(e.from===node.id?e.to:e.from);
-    return `<div class="route-row"><span>${e.from===node.id?'→':'←'} ${safe(linked?nodeDef(linked).name:'Unknown')}<small>${safe(catalog.resources[e.resource]?.name||(e.resource==='power'?'Electricity':e.resource))}</small></span><button data-action="unlink" data-id="${e.id}" title="Disconnect line">×</button></div>`;
-  }).join('')||'<p class="tiny muted">No connections yet</p>';
+  const connections=connectionsForMachine(state.edges,node.id);
+  const linkRows=(edges,label)=>{
+    if(!edges.length)return '';
+    return `<h4 class="connection-direction">${label} · ${edges.length}</h4>`+edges.map(edge=>{
+      const other=byId(edge.from===node.id?edge.to:edge.from);
+      const otherName=other?nodeDef(other).name:'Unknown machine';
+      const resourceName=edge.resource==='power'?'Electricity':(catalog.resources[edge.resource]?.name||edge.resource);
+      const color=edge.resource==='power'?'#f2db3d':(catalog.resources[edge.resource]?.color||'#63b9b7');
+      const active=focusedLinkId===edge.id;
+      return `<div class="route-row connection-row ${active?'active':''}" data-link-row="${safe(edge.id)}">
+        <button type="button" class="connection-target" data-action="focus-link" data-id="${safe(edge.id)}" aria-pressed="${active}" title="Highlight this specific connection">
+          <span class="connection-dot" style="--connection-color:${safe(color)}"></span>
+          <span><strong>${edge.from===node.id?'→':'←'} ${safe(otherName)} <small>${safe(other?.id.toUpperCase()||'?')}</small></strong><small>${safe(resourceName)}</small></span>
+        </button>
+        <button type="button" class="connection-remove danger" data-action="unlink" data-id="${safe(edge.id)}" aria-label="Disconnect ${safe(resourceName)} link to ${safe(otherName)}" title="Disconnect only this link">×</button>
+      </div>`;
+    }).join('');
+  };
+  const routes=connections.length
+    ?linkRows(connections.filter(e=>e.to===node.id),'Incoming')+linkRows(connections.filter(e=>e.from===node.id),'Outgoing')
+    :'<p class="tiny muted">No connections yet. Connect output ports to compatible input ports.</p>';
   const count=state.nodes.filter(n=>n.kind===node.kind).length;
   area.innerHTML=`<div class="card inspector-card">
     <div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2>
@@ -241,11 +293,12 @@ function renderInspector(){
     <div class="stat-pair"><span>Facility limit</span><strong>${count} / ${facilityLimit(state,node.kind)}</strong></div>
     <div class="stat-pair"><span>Upgrade output</span><strong>${fmt(base)} → ${fmt(improved)}${unit}</strong></div>
     <div class="inspector-actions"><button data-action="upgrade" data-id="${node.id}" ${state.credits>=upgrade&&node.level<20?'':'disabled'}>↑ Upgrade · ${money(upgrade)}</button><button data-action="toggle" data-id="${node.id}">${node.enabled?'Pause':'Resume'}</button><button class="danger" data-action="demolish" data-id="${node.id}">Recycle</button></div>
-    <details class="machine-advanced"><summary>Technical details, inventory & connections</summary>
+    <section class="connection-manager" aria-label="Connections for this machine"><div class="connection-manager-head"><h3>Connections · ${connections.length}</h3>${focusedLinkId?'<button type="button" data-action="clear-link" title="Return to all links for this machine">Clear highlight</button>':''}</div><p class="tiny muted">Select a route to highlight it on the canvas. × disconnects only that route.</p>${routes}</section>
+    <details class="machine-advanced"><summary>Technical details & inventory</summary>
       <div class="diagnostic-row"><span>Production</span><strong>${fmt(stats.rate)} / ${fmt(ideal)} /s</strong></div>
       <div class="diagnostic-row"><span>Electricity available</span><strong>${fmt(power*100,0)}%</strong></div>
       <div class="diagnostic-row"><span>Output storage capacity</span><strong>${fmt(capacity(state,node))} items</strong></div>
-      ${stock}${rates}<h3>Connections</h3>${routes}
+      ${stock}${rates}
     </details>
   </div>`;
 }
@@ -451,8 +504,11 @@ function liveRefresh(){
 }
 function selection(id){
   state.selectedNode=id;
+  focusedLinkId=validLinkFocus(state.edges,focusedLinkId,id);
+  hoveredLinkId=null;
   document.querySelectorAll('.factory-node').forEach(node=>node.classList.toggle('selected',node.dataset.nodeId===id));
   renderInspector();
+  syncLinkHighlights();
 }
 function handlePort(button){
   const {node,port,resource}=button.dataset;
@@ -511,8 +567,19 @@ function handleAction(button){
   if(action==='upgrade'){runAction(upgradeFacility(state,catalog,id),'Machine upgraded');return;}
   if(action==='toggle'){const node=byId(id);if(node){node.enabled=!node.enabled;refresh();saveLocal();}return;}
   if(action==='demolish'){if(userConfirm('Recycle this facility for 40% of its base cost? Connected lines and inventory will be lost.'))runAction(removeFacility(state,catalog,id),'Facility recycled');return;}
+  if(action==='focus-link'){
+    focusedLinkId=validLinkFocus(state.edges,id,state.selectedNode);
+    hoveredLinkId=null;
+    renderInspector();syncLinkHighlights();return;
+  }
+  if(action==='clear-link'){
+    focusedLinkId=null;hoveredLinkId=null;renderInspector();syncLinkHighlights();return;
+  }
   if(action==='unlink'){
-    state.edges=state.edges.filter(e=>e.id!==id);runAction(null,'Connection removed');return;
+    state.edges=state.edges.filter(e=>e.id!==id);
+    if(focusedLinkId===id)focusedLinkId=null;
+    if(hoveredLinkId===id)hoveredLinkId=null;
+    runAction(null,'Connection removed');return;
   }
   if(action==='contract'){runAction(completeContract(state,catalog,id),'Contract fulfilled');return;}
   if(action==='autosell'){
@@ -541,8 +608,30 @@ document.addEventListener('click',event=>{
   if(event.target.closest('#guide-focus')){focusGuidedTarget();return;}
   const port=event.target.closest('[data-port]');if(port){handlePort(port);return;}
   const action=event.target.closest('[data-action]');if(action){handleAction(action);return;}
-  const edge=event.target.closest('[data-edge]');if(edge){state.edges=state.edges.filter(e=>e.id!==edge.dataset.edge);runAction(null,'Link disconnected');return;}
+  const edge=event.target.closest('[data-edge]');if(edge){
+    const connection=state.edges.find(e=>e.id===edge.dataset.edge);
+    if(!connection||inTutorial())return;
+    if(connection.from!==state.selectedNode&&connection.to!==state.selectedNode)selection(connection.from);
+    focusedLinkId=connection.id;hoveredLinkId=null;
+    renderInspector();syncLinkHighlights();return;
+  }
   const tab=event.target.closest('[data-tab]');if(tab)setTab(tab.dataset.tab);
+});
+/** Link-list hover picks one SVG route, even when many routes occupy the same pixels. */
+document.addEventListener('pointerover',event=>{
+  const element=event.target.closest('[data-link-row], [data-edge]');
+  if(!element||inTutorial())return;
+  const id=element.dataset.linkRow||element.dataset.edge;
+  if(id!==hoveredLinkId){hoveredLinkId=id;syncLinkHighlights();}
+});
+document.addEventListener('pointerout',event=>{
+  const element=event.target.closest('[data-link-row], [data-edge]');
+  if(element&&!element.contains(event.relatedTarget)&&hoveredLinkId===(element.dataset.linkRow||element.dataset.edge)){
+    hoveredLinkId=null;syncLinkHighlights();
+  }
+});
+$('#focus-links-toggle').addEventListener('click',()=>{
+  isolateMachineLinks=!isolateMachineLinks;syncLinkHighlights();
 });
 /** Include both pointer movement and viewport scrolling in drag coordinates. */
 function updateDraggedNode(){
