@@ -20,14 +20,16 @@ export const TALENT_EFFECTS={
   },
   "adaptive_control": {
     "speed": 0.08,
-    "output": 0.03
+    "output": 0.03,
+    "labOutput": 0.06
   },
   "batch_processing": {
     "speed": 0.12,
     "storage": 0.08
   },
   "grid_buffer": {
-    "powerGeneration": 0.12
+    "powerGeneration": 0.12,
+    "solarPower": 0.12
   },
   "eco_mode": {
     "powerSavings": 0.22
@@ -57,7 +59,8 @@ export const TALENT_EFFECTS={
     "slots": 1
   },
   "automation": {
-    "autoTrading": 1
+    "autoPricing": 0.08,
+    "labOutput": 0.1
   },
   "smart_dispatch": {
     "routing": 0.1,
@@ -108,7 +111,8 @@ export const TALENT_EFFECTS={
   },
   "corporate_training": {
     "xp": 0.15,
-    "slots": 1
+    "slots": 1,
+    "labOutput": 0.1
   },
   "luxury_brand": {
     "pricing": 0.25
