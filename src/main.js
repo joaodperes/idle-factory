@@ -224,11 +224,17 @@ function renderContracts(){
     return `<div class="market-row"><div class="market-name"><span class="market-dot" style="background:${r.color}"></span><div><strong>${safe(r.name)}</strong><small>${fmt(qty)} in terminals · ${money(price(state,catalog,id))}/unit</small></div></div><div class="market-actions"><button data-action="autosell" data-id="${id}" ${canAuto?'':'disabled'} title="${canAuto?'Toggle automatic sales':'Automation talent unlocks automated sales'}">${auto?'AUTO ON':'AUTO OFF'}</button><button data-action="sell" data-id="${id}" ${qty>0?'':'disabled'}>Sell</button></div></div>`;
   }).join('');
 }
-function renderManagement(){
+let renderedTreeLevel=null;
+function renderManagementHeader(){
   const level=factoryLevel(state),free=availableTalentPoints(state),next=nextFactoryLevelXp(state);
   const levelStart=60*(level-1)**2;
   const pct=next===null?100:Math.max(0,Math.min(100,100*(state.xp-levelStart)/(next-levelStart)));
   $('#level-stats').innerHTML=`<div class="factory-progression"><div class="factory-level-glyph">${level}</div><div class="factory-level-copy"><strong>Factory Level ${level}</strong><small>${next===null?'Maximum factory level':`${fmt(state.xp)} / ${fmt(next)} XP · ${fmt(Math.max(0,next-state.xp))} XP to next level`}</small><div class="progress factory-xp"><span style="width:${pct}%"></span></div></div><div class="factory-level-perks"><strong>${usedSlots(state,catalog)} / ${totalSlots(state)} slots</strong><small>+2 industrial slots every 3 factory levels</small><strong>${free} unspent talent points</strong><small>${level<TALENT_UNLOCK_LEVEL?`Talents unlock at level ${TALENT_UNLOCK_LEVEL}`:`${pointsEarned(state)} earned from levels`}</small></div></div>`;
+}
+function renderManagement(){
+  renderManagementHeader();
+  const level=factoryLevel(state);
+  renderedTreeLevel=level;
   const branches=Object.entries(catalog.talents).map(([id,branch])=>{
     const spent=branch.nodes.reduce((sum,n)=>sum+(state.talents[n.id]||0),0);
     const paths=branch.nodes.flatMap(node=>(node.requires||[]).map(parentId=>{
@@ -340,7 +346,10 @@ function liveRefresh(){
   renderMetrics();
   if(activeTab==='factory'){updateNodeStats();renderInspector();renderOverview();renderFacilities();}
   if(activeTab==='contracts')renderContracts();
-  if(activeTab==='management')renderManagement();
+  if(activeTab==='management'){
+    if(renderedTreeLevel!==factoryLevel(state))renderManagement();
+    else renderManagementHeader();
+  }
   if(activeTab==='research')renderResearch();
   if(activeTab==='investors')renderInvestors();
   if(activeTab==='settings')renderStats();
