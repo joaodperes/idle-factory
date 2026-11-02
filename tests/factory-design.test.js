@@ -47,7 +47,7 @@ test('only generators may supply electricity; consumers and terminals cannot exp
   state.nodes.push(makeNode('smelter','smelter',550,250));
   state.nodes.push(makeNode('market','market',850,250));
   assert.match(canConnect(state,catalog,'n2','smelter','power'),/Only Power Stations/);
-  assert.match(canConnect(state,catalog,'market','smelter','power'),/Power links/);
+  assert.match(canConnect(state,catalog,'market','smelter','power'),/Only Power Stations/);
   const g=gridStatus(state,catalog);
   assert.equal(g.supply,12);
   state.nodes[0].level=2;
