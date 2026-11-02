@@ -14,9 +14,9 @@ export function totalSlots(state){return 26+3*(state.investments.infrastructure|
 export function nodeCost(kind,state,catalog){
   const b=catalog.facilities[kind];
   const owned=state.nodes.filter(n=>n.kind===kind).length;
-  return Math.ceil(b.cost*Math.pow(1.28,Math.max(0,owned-1)));
+  return Math.ceil(b.cost*Math.pow(1.28,owned));
 }
-export function upgradeCost(node,catalog){return Math.ceil(catalog.facilities[node.kind].cost*0.55*Math.pow(1.5,node.level-1));}
+export function upgradeCost(node,catalog){return Math.ceil(catalog.facilities[node.kind].cost*0.55*Math.pow(1.5,node.level-1)-1e-9);}
 export function canConnect(state,catalog,fromId,toId,resource){
   const a=state.nodes.find(n=>n.id===fromId),b=state.nodes.find(n=>n.id===toId);
   if(!a||!b||a.id===b.id)return 'Choose two different facilities.';
