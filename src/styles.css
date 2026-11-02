@@ -39,3 +39,36 @@
 
 /* Keep upgrade/unlock explanations readable even in the narrow build sidebar. */
 .build-item.locked .build-copy small{white-space:normal;line-height:1.35}.research-grid>.card:first-child{grid-column:1/-1}
+
+/* World-inspired (not WoW artwork) branching factory talent trees. */
+.factory-progression{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.factory-level-glyph{width:68px;height:68px;border:2px solid #7db3d3;border-radius:16px;background:radial-gradient(circle,#31567a,#11283b);font-size:30px;font-weight:850;color:#eff8ff;display:grid;place-items:center;box-shadow:0 0 22px #4aa3d01f}
+.factory-level-copy{flex:1;min-width:185px}.factory-level-copy strong,.factory-level-copy small,.factory-level-perks strong,.factory-level-perks small{display:block}.factory-level-copy strong{font-size:19px}.factory-level-copy small{font-size:12px;margin-top:7px}.factory-xp{margin:13px 0 0;max-width:550px;height:10px}.factory-level-perks{display:grid;gap:4px;margin-left:auto}.factory-level-perks strong{font-size:15px}.factory-level-perks small{font-size:11px;margin-bottom:7px}
+.talent-lock-banner{background:#1c2c40;border:1px solid #527796;padding:18px 20px;border-radius:12px;margin:16px 0}.talent-lock-banner strong{font-size:17px}.talent-lock-banner p{font-size:13px;margin:7px 0 0;color:#b2c5d9}
+.talent-tree-intro{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:14px 0}.talent-tree-intro p{max-width:730px;color:#acbfd1;margin:0}.talent-tree-intro button{font-size:12px}
+.talent-tree-columns{display:grid;grid-template-columns:repeat(3,minmax(365px,1fr));gap:12px;align-items:start}
+.talent-tree-columns>.talent-branch{min-width:0;padding:11px;overflow:hidden;border-top:3px solid var(--branch-color)}
+.talent-tree-header{min-height:100px;display:flex;gap:11px;align-items:start;padding:5px 4px 13px;border-bottom:1px solid #ffffff1d}
+.talent-tree-header h2{font-size:17px}.talent-tree-header p{font-size:11px;line-height:1.45;color:#b4c8db;margin:6px 0}.talent-tree-header small{color:var(--branch-color);font-weight:700}.talent-tree-icon{background:#203b50;width:40px;height:40px;display:grid;place-items:center;flex-shrink:0;border-radius:10px;font-size:22px;color:var(--branch-color)}
+.talent-map{position:relative;min-height:720px;margin-top:12px}.talent-node-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(5,144px);gap:0 5px;position:relative;z-index:1}
+.talent-links{position:absolute;inset:0;width:100%;height:720px;z-index:0;pointer-events:none;overflow:visible}
+.talent-links path{stroke:#567085;stroke-width:2;stroke-dasharray:4 5;fill:none;opacity:.5}.talent-links path.linked{stroke:var(--branch-color);stroke-width:2.7;stroke-dasharray:none;opacity:.85}
+.talent-tier-label{position:absolute;left:0;width:100%;font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:#849db6;text-align:center;z-index:0;border-top:1px solid #ffffff12;padding-top:4px}
+.talent-node{margin:30px 2px 5px;display:flex;flex-direction:column;align-items:center;justify-content:start;gap:3px;min-width:0;min-height:0;height:108px;padding:5px 4px;border-radius:10px;border:1px solid #38516a;background:linear-gradient(160deg,#1b2e43,#0d1c2d);box-shadow:0 5px 14px #0004;text-align:center;transform:none!important;transition:border-color .15s,box-shadow .15s}
+.talent-node .talent-node-icon{font-size:22px;line-height:1}.talent-node strong{font-size:10px;line-height:1.1;min-height:21px;display:flex;align-items:center;justify-content:center}.talent-node-rank{font-weight:700;font-variant-numeric:tabular-nums;font-size:10px;color:#b5cbda}
+.talent-node small,.talent-node em,.talent-node .talent-prereq{display:none}
+.talent-node .talent-status{font-size:9px;line-height:1.2;color:#95a8bd;max-height:25px;overflow:hidden}
+.talent-node.learned{border-color:var(--branch-color);background:linear-gradient(160deg,#24465a,#122c40);box-shadow:0 0 0 1px color-mix(in srgb,var(--branch-color) 38%,transparent),0 4px 16px #0003}
+.talent-node.learned .talent-node-icon,.talent-node.learned .talent-node-rank{color:var(--branch-color)}
+.talent-node.learnable{border-color:#97c4df;background:#203b50;box-shadow:0 0 0 1px #87c6e44d,0 0 20px #68b8d43c;cursor:pointer}
+.talent-node.learnable .talent-status{color:#b6efdc}
+.talent-node.unavailable{opacity:.57;filter:saturate(.7)}
+.talent-node:disabled{cursor:default}.talent-node:disabled:hover{border-color:#38516a;background:linear-gradient(160deg,#1b2e43,#0d1c2d)}
+.talent-node.learned:disabled:hover{border-color:var(--branch-color);background:linear-gradient(160deg,#24465a,#122c40)}
+.talent-node.learnable:hover{border-color:#d0f5fc;box-shadow:0 0 18px #8ce8d354}
+.contract-instructions{font-size:12px;color:#a7d5ce;background:#112c36;border-left:3px solid #5db9ab;padding:9px 11px;border-radius:4px}
+.factory-diagnostics{background:#102436;border:1px solid #34536d;border-radius:9px;padding:12px;margin-top:10px}.factory-diagnostics>strong{display:block;font-size:13px;color:#d9ebf3}.diagnostic-row{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #ffffff0d;padding:8px 0;font-size:11px}.diagnostic-row:last-child{border:0}.diagnostic-row span{color:#aec2d5}.diagnostic-row strong{font-variant-numeric:tabular-nums;text-align:right;font-size:11px}.diagnostic-row.warning strong{color:#ffd596}.diagnostic-signal{margin-top:9px;font-size:11px;color:#d3e2f0}.factory-health-list{display:grid;gap:4px}.factory-health-list button{text-align:left;padding:8px 10px;border:1px solid #364d62;background:#14293d;font-size:11px;border-radius:7px;display:flex;justify-content:space-between;gap:7px;align-items:center}
+.factory-health-list button:hover{border-color:#7ac4cb}.factory-health-list .warning{color:#ffd596}
+@media(max-width:1350px){.talent-tree-columns{grid-template-columns:repeat(2,minmax(365px,1fr))}}
+@media(max-width:850px){.talent-tree-columns{grid-template-columns:minmax(0,1fr)}.talent-tree-columns>.talent-branch{max-width:600px;margin:0 auto;width:100%}}
+@media(max-width:440px){.talent-node strong{font-size:9px}.talent-node .talent-status{font-size:8px}.talent-tree-columns{grid-template-columns:minmax(0,1fr)}.talent-node-grid{column-gap:0}.talent-node{padding:5px 2px}}
