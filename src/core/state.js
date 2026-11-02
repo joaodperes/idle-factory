@@ -29,7 +29,7 @@ export function defaultState() {
     version:3, credits:900, data:0, angels:0, totalAngels:0,
     runRevenue:0, lifetimeRevenue:0, contractsFilled:0, runContracts:0,
     xp:0, elapsed:0, runElapsed:0, lastSeen:Date.now(),
-    specialization:null, talents:{}, careerTree:null, completedCareers:[], investments:{}, research:{},
+    specialization:null, talents:{}, careerTree:null, completedCareers:[], legacyTalentCredits:0, investments:{}, research:{},
     nodes:starterGraph().nodes, edges:starterGraph().edges, nextId:3,
     autoSell:{metal:true}, contractRuns:{}, dailyContracts:{}, researchLicenses:0, orders:[], orderClock:0, nextOrderAt:0, orderSerial:1, orderStats:{fulfilled:0,expired:0}, selectedNode:'n1', layouts:[],
     stats:{resets:0, clicks:0}, onboarding:false, tutorialStep:0
@@ -47,6 +47,9 @@ export function sanitizeSave(raw, catalog) {
   s.careerTree=typeof raw.careerTree==='string'&&catalog.talents[raw.careerTree]?raw.careerTree:null;
   s.completedCareers=Array.isArray(raw.completedCareers)?[...new Set(raw.completedCareers.filter(id=>typeof id==='string'&&catalog.talents[id]))]:[];
   const allowedTalents = Object.values(catalog.talents).flatMap(branch=>branch.nodes);
+  const known=new Set(allowedTalents.map(t=>t.id));
+  const former=Object.entries(asObject(raw.talents)).filter(([id])=>!known.has(id)).reduce((sum,[,rank])=>sum+integer(rank,0,20),0);
+  s.legacyTalentCredits=integer(raw.legacyTalentCredits,0,200)+Math.min(120,former);
   for (const t of allowedTalents) s.talents[t.id] = integer(asObject(raw.talents)[t.id],0,t.max);
   s.researchLicenses=integer(raw.researchLicenses,0,100000);
   s.orderClock=number(raw.orderClock,0,1e12);
