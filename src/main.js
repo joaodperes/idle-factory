@@ -7,6 +7,7 @@ import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,buyTalent
 import {TUTORIAL_STEPS,advanceTutorial,tutorialPort} from './core/tutorial.js';
 import {routeConnection,routePath} from './core/router.js';
 import {factoryLevel,nextFactoryLevelXp,talentStatus,pointsEarned,TIER_RULES,talentModifier,TALENT_UNLOCK_LEVEL} from './core/talents.js';
+import {buildHudMetrics,renderHudHtml} from './core/hud.js';
 
 const catalog=await loadCatalog();
 const loaded=loadLocal(catalog);
@@ -39,15 +40,8 @@ function setTab(tab){
   refresh();
 }
 function renderMetrics(){
-  const g=gridStatus(state,catalog),lvl=factoryLevel(state);
-  const underpowered=[...g.groups.values()].filter(group=>group.demand>group.supply+0.000001).length;
-  const available=Math.max(0,g.supply-g.demand);
-  const note=underpowered?`⚠ ${underpowered} isolated grid${underpowered===1?'':'s'} short of power`:`${fmt(g.demand)} used · ${fmt(available)} spare`;
-  const powerMetric=['POWER · AVAILABLE / TOTAL',`${fmt(available)} / ${fmt(g.supply)}`,note,underpowered>0];
-  const levelMetric=['FACTORY LEVEL',String(lvl),lvl<TALENT_UNLOCK_LEVEL?`Talent tree at Level ${TALENT_UNLOCK_LEVEL}`:`${availableTalentPoints(state)} free talent points`];
-  const values=inTutorial()? [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],powerMetric]
-    : [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],levelMetric,['RESEARCH',fmt(state.data)],powerMetric,['CAPACITY',`${usedSlots(state,catalog)} / ${totalSlots(state)}`],['ANGELS',fmt(state.angels)]];
-  $('#metrics').innerHTML=values.map(([name,value,detail,warning])=>`<div class="metric ${warning?'metric-warning':''}" ${name.startsWith('POWER')?'title="Available / generated power. Separate grids may lack electricity even with spare total generation."':''}><small>${name}</small><strong>${value}</strong>${detail?`<small class="metric-note">${detail}</small>`:''}</div>`).join('');
+  const grid=gridStatus(state,catalog);
+  $('#metrics').innerHTML=renderHudHtml(buildHudMetrics(state,catalog,grid,{fmt,money,tutorial:inTutorial()}));
 }
 function renderFacilities(){
   const step=TUTORIAL_STEPS[state.tutorialStep||0],milestone=nextCapacityMilestone(state);
