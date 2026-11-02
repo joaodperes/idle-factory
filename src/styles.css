@@ -72,3 +72,5 @@
 @media(max-width:1350px){.talent-tree-columns{grid-template-columns:repeat(2,minmax(365px,1fr))}}
 @media(max-width:850px){.talent-tree-columns{grid-template-columns:minmax(0,1fr)}.talent-tree-columns>.talent-branch{max-width:600px;margin:0 auto;width:100%}}
 @media(max-width:440px){.talent-node strong{font-size:9px}.talent-node .talent-status{font-size:8px}.talent-tree-columns{grid-template-columns:minmax(0,1fr)}.talent-node-grid{column-gap:0}.talent-node{padding:5px 2px}}
+
+.inline-stats>.factory-progression{width:100%}.talent-node:disabled{opacity:1}.talent-node.unavailable:disabled{opacity:.62}
