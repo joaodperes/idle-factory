@@ -10,11 +10,11 @@ const BASE_LINK_RATE=3;
 const BRANCH={lean:'engineer',precision:'engineer',grid:'engineer',routing:'architect',storage:'architect',automation:'architect',pricing:'strategist',negotiation:'strategist',seed:'strategist'};
 const getTalent=(s,id)=>BRANCH[id]===s.specialization?(s.talents[id]||0):0;
 const getResearch=(s,id)=>s.research[id]===true;
-export function capacity(state,node){return (node.kind==='market'?600:OUTPUT_LIMIT)*(1+0.5*getTalent(state,'storage'));}
+export function capacity(state,node){return (node.kind==='market'?600:OUTPUT_LIMIT)*(1+0.5*getTalent(state,'storage'))*(1+0.25*(node.level-1));}
 /** Maximum output when powered and supplied; compare with measured productionActivity(). */
 export function maxProductionRate(state,node,catalog){
   const def=catalog.facilities[node.kind];if(!def?.output)return 0;
-  const speed=(1+0.4*(node.level-1)+0.15*getTalent(state,'precision'))*(getResearch(state,'robotics')?1.5:1);
+  const speed=(1+0.5*(node.level-1)+0.15*getTalent(state,'precision'))*(getResearch(state,'robotics')?1.5:1);
   return def.rate*speed*(1+0.1*(state.investments.engineering||0))*(getResearch(state,'yield')?1.25:1);
 }
 export function linkRate(state){return BASE_LINK_RATE*(1+0.4*getTalent(state,'routing')+0.2*(state.investments.patents||0))*(getResearch(state,'logistics')?1.5:1);}
@@ -63,7 +63,7 @@ export function gridStatus(state,catalog){
     if(!groups.has(root))groups.set(root,{supply:0,demand:0,nodes:[]});
     const g=groups.get(root);g.nodes.push(node.id);
     if(!node.enabled)continue;
-    g.supply+=(def.power||0)*(1+0.2*(node.level-1));
+    g.supply+=(def.power||0)*(1+0.5*(node.level-1));
     g.demand+=(def.demand||0)*(1-0.15*getTalent(state,'grid'))*(getResearch(state,'energy')?0.8:1);
   }
   const efficiency=new Map();let supply=0,demand=0;
