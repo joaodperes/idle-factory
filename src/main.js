@@ -1,7 +1,7 @@
 import {loadCatalog} from './core/catalog.js';
 import {SAVE_KEY,loadLocal,sanitizeSave,serializeSave,defaultState} from './core/state.js';
 import {fmt,timeLabel} from './core/format.js';
-import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,sell,marketActivity,productionActivity,productionDiagnostics,maxProductionRate,generatorOutput} from './core/engine.js';
+import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,sell,marketActivity,productionActivity,productionDiagnostics,maxProductionRate,generatorOutput,WAREHOUSE_TRADE_SPEED} from './core/engine.js';
 import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility,facilityLimit,nextCapacityMilestone,nextCapacityLevel} from './core/graph.js';
 import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,publishResearch,buyTalent,buyInvestment,resetCompany,saveLayout,loadLayout,respecTalents} from './core/actions.js';
 import {TUTORIAL_STEPS,advanceTutorial,tutorialPort} from './core/tutorial.js';
@@ -179,7 +179,7 @@ function updateNodeStats(){
     let label,bufferText='';
     if(!n.enabled)label='⏸ Paused';
     else if(def.power)label=`⚡ +${fmt(generatorOutput(state,n,catalog))} generated`;
-    else if(n.kind==='warehouse')label=`▥ ${fmt(amount)} goods stored`;
+    else if(n.kind==='warehouse')label=`▥ ${fmt(amount)} buffered · overflow at full`;
     else if(n.kind==='market'){
       const sale=marketActivity(n),deliveries=state.edges.filter(e=>e.to===n.id&&e.resource!=='power');
       label=sale.units>0?`✓ Sold ${fmt(sale.units)} · +${money(sale.revenue)}`
@@ -198,7 +198,7 @@ function updateNodeStats(){
         :power<0.99?`⚠ Power limited · ${rateText}`
         :filled?`⚠ Output full · ${rateText}`:`◌ Startup / settling · ${rateText}`;
     }else label='● Ready';
-    if(n.kind==='warehouse')bufferText=`${fmt(amount)} total · ${fmt(capacity(state,n))} cap/resource`;
+    if(n.kind==='warehouse')bufferText=`${fmt(amount)} total · ${fmt(capacity(state,n))} per material before trade dispatch`;
     else if(n.kind==='market')bufferText=`${fmt(amount)} stored · ${state.autoSell.metal?'metal auto-sell ON':'manual metal sales'}`;
     else if(def.output&&def.output!=='data')bufferText=`${catalog.resources[def.output]?.name||def.output}: ${fmt(n.buffer[def.output]||0)} stored`;
     else if(def.output==='data')bufferText='Research data sent directly to R&D';
@@ -226,7 +226,7 @@ function diagnosis(node){
   const inventory=def.output==='data'?0:(node.buffer[def.output]||0);
   const maxStock=capacity(state,node),outputName=catalog.resources[def.output]?.name||def.output;
   if(!node.enabled)return {title:'Machine paused',action:'Select Resume to restart production.',type:'warning'};
-  if(!def.output)return node.kind==='warehouse'?{title:'Warehouse ready',action:'Connect any machine to the left input, then dispatch stored goods through a matching colored output. Disable Auto Sell to reserve materials for timed orders.',type:'okay'}:{title:def.power?'Electricity generator':'Trade Terminal',action:def.power?'Connect its yellow output to the power inputs of consuming machines.':'Connect a production output to the terminal to sell or reserve goods.',type:'okay'};
+  if(!def.output)return node.kind==='warehouse'?{title:'Warehouse ready',action:'Connect producers here to stock goods and secure contract requirements. Only a FULL buffer for each material dispatches to a linked Trade Terminal, at 75% link speed. Other machine outputs remain available as normal.',type:'okay'}:{title:def.power?'Electricity generator':'Trade Terminal',action:def.power?'Connect its yellow output to the power inputs of consuming machines.':'Connect a production output to the terminal to sell or reserve goods.',type:'okay'};
   if(def.output!=='data'&&inventory>=maxStock-0.1){
     const downstream=state.edges.some(e=>e.from===node.id&&e.resource===def.output);
     return {title:outputName+' storage full',action:downstream
@@ -257,7 +257,7 @@ function renderInspector(){
   const improved=def.output?maxProductionRate(state,{...node,level:node.level+1},catalog):def.power?generatorOutput(state,{...node,level:node.level+1},catalog):capacity(state,{...node,level:node.level+1});
   const unit=def.output?' /s':def.power?' power':' items';
   const inv=node.kind==='warehouse'?Object.keys(catalog.resources).filter(r=>r!=='data'):[...new Set([...Object.keys(def.inputs||{}),...(def.output&&def.output!=='data'?[def.output]:[])])];
-  const stock=inv.map(id=>`<div class="diagnostic-row"><span>${safe(catalog.resources[id]?.name||id)}</span><strong>${fmt(node.buffer[id]||0)} stored</strong></div>`).join('')||'<p class="muted tiny">No material inventory</p>';
+  const stock=inv.map(id=>`<div class="diagnostic-row"><span>${safe(catalog.resources[id]?.name||id)}</span><strong>${fmt(node.buffer[id]||0)}${node.kind==='warehouse'?' / '+fmt(capacity(state,node)):''} stored</strong></div>`).join('')||'<p class="muted tiny">No material inventory</p>';
   const diagnostic=productionDiagnostics(node),power=gridStatus(state,catalog).efficiency.get(node.id)||0;
   const rates=Object.entries(def.inputs||{}).map(([id,qty])=>{
     const got=diagnostic.seconds?(diagnostic.received[id]||0)/diagnostic.seconds:0;
@@ -333,7 +333,7 @@ function renderContracts(){
     const pct=Math.min(100,100*reserved/order.amount),timePct=100*remaining/Math.max(1,order.expiresAt-order.createdAt);
     const inactive=!!state.autoSell[order.resource];
     const guidance=inactive
-      ? 'Auto Sell ON · reserve contract goods first, then sell the excess automatically.'
+      ? 'Auto Sell ON · contracts reserve first; direct-to-terminal goods sell now, warehouse overflow sells only when full.'
       : 'Auto Sell OFF · reserve contract goods first, then keep the remaining stock.';
     return `<article class="contract urgent-order ${remaining<45?'urgent':''}">
       <div class="contract-top"><div><div class="eyebrow">${safe(resource?.name||order.resource)} · LIVE CUSTOMER</div><h3>${safe(template?.title||'Commercial order')}</h3></div><strong class="value">+${money(order.reward*(1+talentModifier(state,'contracts')))}</strong></div>
@@ -345,8 +345,8 @@ function renderContracts(){
   }).join('');
   $('#contracts-list').innerHTML=`<div class="orders-summary"><strong>${orders.length} / ${available} active customer orders</strong><small>${stats.fulfilled} fulfilled · ${stats.expired} expired · New offers arrive during active play</small></div>${tiles||'<p class="muted">Waiting for incoming orders… Keep production running and check back shortly.</p>'}`;
   $('#market-list').innerHTML=Object.entries(catalog.resources).filter(([,r])=>r.price>0).map(([id,r])=>{
-    const qty=availableStock(state,id),auto=state.autoSell[id];
-    return `<div class="market-row"><div class="market-name"><span class="market-dot" style="background:${r.color}"></span><div><strong>${safe(r.name)}</strong><small>${fmt(qty)} stored in terminals / warehouses · ${money(price(state,catalog,id))}/unit</small></div></div><div class="market-actions"><button data-action="autosell" data-id="${id}" title="Auto Sell ON prioritizes active contracts, then sells surplus; OFF retains surplus for manual sale">${auto?'AUTO ON':'AUTO OFF'}</button><button data-action="sell" data-id="${id}" ${qty>0?'':'disabled'}>Sell</button></div></div>`;
+    const qty=marketQuantity(state,id),held=Math.max(0,availableStock(state,id)-qty),auto=state.autoSell[id];
+    return `<div class="market-row"><div class="market-name"><span class="market-dot" style="background:${r.color}"></span><div><strong>${safe(r.name)}</strong><small>${fmt(qty)} sellable at terminals · ${fmt(held)} warehoused · ${money(price(state,catalog,id))}/unit</small></div></div><div class="market-actions"><button data-action="autosell" data-id="${id}" title="Reserve contracts first; automatically sell only terminal stock. Warehouse goods must fill each material buffer and route to a terminal before selling.">${auto?'AUTO ON':'AUTO OFF'}</button><button data-action="sell" data-id="${id}" ${qty>0?'':'disabled'}>Sell</button></div></div>`;
   }).join('');
 }
 let renderedTreeLevel=null;
@@ -583,7 +583,7 @@ function handleAction(button){
   }
   if(action==='contract'){runAction(completeContract(state,catalog,id),'Contract fulfilled');return;}
   if(action==='autosell'){
-    state.autoSell[id]=!state.autoSell[id];runAction(null,state.autoSell[id]?'Auto Sell ON: contracts first, surplus sold':'Auto Sell OFF: contracts first, surplus stored');return;
+    state.autoSell[id]=!state.autoSell[id];runAction(null,state.autoSell[id]?'Auto Sell ON: contracts first, terminal stock sold':'Auto Sell OFF: contracts first, terminal stock retained');return;
   }
   if(action==='sell'){
     const qty=marketQuantity(state,id);
