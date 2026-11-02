@@ -17,11 +17,11 @@ test('18 researched technologies are in ascending price order with prerequisites
   assert.ok(arr.every((item,i)=>i===0||item.cost>=arr[i-1].cost));
   assert.ok(arr.some(item=>item.tier===6&&item.requires.length));
 });
-test('talent tiers are gated by points, not an arbitrary higher factory level',()=>{
-  const s=defaultState();s.xp=60*11*11;
-  assert.equal(factoryLevel(s),12);
-  s.talents={precision:3,lean:2,yield_mastery:2};
-  assert.equal(talentStatus(s,catalog,'adaptive_control').enabled,true);
+test('career tiers require allocated points but no additional factory level gates',()=>{
+  const s=defaultState();s.xp=1e10;
+  s.talents={engineer_t1_c1:2,engineer_t1_c2:2,engineer_t1_c3:2};
+  s.careerTree='engineer';
+  assert.equal(talentStatus(s,catalog,'engineer_t2_c2').enabled,true);
 });
 test('research requires its predecessor and consumes R&D data',()=>{
   const s=defaultState();s.data=1000;
@@ -66,17 +66,15 @@ test('all sellable materials can automatically sell without automation talents',
   assert.equal(terminal.buffer.parts,0);
   assert.ok(s.credits>before);
 });
-test('contracts can be completed once per UTC day, not every two minutes',()=>{
+test('orders can be delivered immediately but cannot be reclaimed afterward',()=>{
   const s=defaultState(),terminal=makeNode('market','market',500,220);
-  s.nodes.push(terminal);terminal.buffer.metal=100;
-  const contract=catalog.contracts.find(c=>c.id==='foundations');
-  assert.equal(contractAvailable(s,contract),true);
-  assert.equal(completeContract(s,catalog,'foundations'),null);
-  assert.equal(contractAvailable(s,contract),false);
-  simulate(s,catalog,125);
-  assert.equal(contractAvailable(s,contract),false);
-  s.dailyContracts.foundations='2000-01-01';
-  assert.equal(contractAvailable(s,contract),true);
+  s.onboarding=true;s.nodes.push(terminal);s.autoSell.metal=false;
+  simulate(s,catalog,1);
+  const order=s.orders[0];terminal.buffer[order.resource]=order.amount;
+  assert.equal(contractAvailable(s,order),true);
+  assert.equal(completeContract(s,catalog,order.id),null);
+  assert.equal(contractAvailable(s,order),false);
+  assert.match(completeContract(s,catalog,order.id),/expired|available/);
 });
 test('header power alert opens affected grid rather than being an inert label',()=>{
   const s=defaultState(),machine=makeNode('isolated','smelter',500,500);
