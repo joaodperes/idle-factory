@@ -21,6 +21,7 @@ let notifyTimer=null;
 let practiceSnapshot=null; // Replays run in a disposable practice factory; player saves are untouched.
 const MIN_CANVAS_ZOOM=0.05,MAX_CANVAS_ZOOM=1.75;
 let canvasZoom=1; // Canvas-only zoom, never browser/page zoom.
+let highlightedGrid=new Set();
 let canvasWidth=INITIAL_CANVAS_WIDTH,canvasHeight=INITIAL_CANVAS_HEIGHT;
 /** Resize the logical world and its SVG together, independently of zoom. */
 function resizeCanvas(extraX=0,extraY=0){
@@ -127,6 +128,10 @@ function renderGraph(){
   $('#nodes').innerHTML=state.nodes.map(nodeMarkup).join('');
   drawLinks();
   updateNodeStats();
+  showGridHighlight();
+}
+function showGridHighlight(){
+  document.querySelectorAll('.factory-node').forEach(node=>node.classList.toggle('power-alert-focus',highlightedGrid.has(node.dataset.nodeId)));
 }
 function updateNodeStats(){
   const grid=gridStatus(state,catalog);
@@ -243,7 +248,12 @@ function renderInspector(){
 function renderOverview(){
   const g=gridStatus(state,catalog);
   const totals=Object.keys(catalog.resources).filter(r=>r!=='data').map(r=>[r,state.nodes.reduce((sum,n)=>sum+(n.buffer[r]||0),0)]).filter(([,n])=>n>0.01);
-  $('#overview').innerHTML=`<div class="stat-pair"><span>Generated power</span><strong>${fmt(g.supply)}/s</strong></div><div class="stat-pair"><span>Power demand</span><strong>${fmt(g.demand)}/s</strong></div><div class="stat-pair"><span>Grid efficiency</span><strong>${g.demand?fmt(Math.min(100,g.supply/g.demand*100),0):100}%*</strong></div><div class="stat-pair"><span>Warehoused goods</span><strong>${fmt(totals.reduce((n,[,v])=>n+v,0))}</strong></div><div class="stat-pair"><span>Factory Level</span><strong>${factoryLevel(state)}</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${usedSlots(state,catalog)} / ${totalSlots(state)}</strong></div><div class="stat-pair"><span>Next level capacity gain</span><strong>Level ${nextCapacityLevel(state)??'MAX'} (+2 slots)</strong></div><div class="stat-pair"><span>Permanent capacity investment</span><strong>+${3*(state.investments.infrastructure||0)} slots</strong></div><p class="tiny muted">Gain Factory XP from sales and contracts, earn +2 industrial slots every 3 levels, or buy Industrial Estate with investors. Certain talents add more slots.</p><div class="divider"></div><h3>Production bottlenecks</h3>${(()=>{
+  const shortages=[...g.groups.values()].filter(group=>group.demand>group.supply+1e-6);
+  const alerts=shortages.length?`<h3>Electrical grid alerts</h3><div class="factory-health-list">${shortages.map((group,index)=>{
+    const consumer=group.nodes.map(byId).find(n=>n&&nodeDef(n).demand);
+    return `<button data-action="power-alert" data-id="${consumer?.id||group.nodes[0]}"><span>Grid ${index+1} · ${fmt(group.supply)} power available / ${fmt(group.demand)} needed</span><strong class="warning">Locate ${group.nodes.length} machines</strong></button>`;
+  }).join('')}</div>`:'';
+  $('#overview').innerHTML=`${alerts}<div class="stat-pair"><span>Generated power</span><strong>${fmt(g.supply)}/s</strong></div><div class="stat-pair"><span>Power demand</span><strong>${fmt(g.demand)}/s</strong></div><div class="stat-pair"><span>Grid efficiency</span><strong>${g.demand?fmt(Math.min(100,g.supply/g.demand*100),0):100}%*</strong></div><div class="stat-pair"><span>Warehoused goods</span><strong>${fmt(totals.reduce((n,[,v])=>n+v,0))}</strong></div><div class="stat-pair"><span>Factory Level</span><strong>${factoryLevel(state)}</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${usedSlots(state,catalog)} / ${totalSlots(state)}</strong></div><div class="stat-pair"><span>Next level capacity gain</span><strong>Level ${nextCapacityLevel(state)??'MAX'} (+2 slots)</strong></div><div class="stat-pair"><span>Permanent capacity investment</span><strong>+${3*(state.investments.infrastructure||0)} slots</strong></div><p class="tiny muted">Gain Factory XP from sales and contracts, earn +2 industrial slots every 3 levels, or buy Industrial Estate with investors. Certain talents add more slots.</p><div class="divider"></div><h3>Production bottlenecks</h3>${(()=>{
     const constrained=state.nodes.filter(node=>node.enabled&&catalog.facilities[node.kind]?.output).map(node=>{
       const potential=maxProductionRate(state,node,catalog),actual=productionActivity(node).rate;
       return {node,ratio:potential>0?actual/potential:1,reason:diagnosis(node).title};
@@ -447,6 +457,24 @@ function handlePort(button){
 function userConfirm(message){return window.confirm(message);}
 function handleAction(button){
   const {action,id,kind}=button.dataset;
+  if(action==='power-alert'){
+    if(inTutorial())return;
+    const groups=[...gridStatus(state,catalog).groups.values()].filter(g=>g.demand>g.supply+1e-6);
+    if(!groups.length){alertToast('All electrical grids are sufficiently powered.');return;}
+    const found=id?groups.find(g=>g.nodes.includes(id)):null;
+    const grid=found||groups[0];
+    highlightedGrid=new Set(grid.nodes);
+    setTab('factory');
+    showGridHighlight();
+    const affected=grid.nodes.map(byId).find(node=>node&&nodeDef(node).demand)||grid.nodes.map(byId).find(Boolean);
+    if(affected){
+      selection(affected.id);
+      const scroll=$('#editor-scroll');
+      scroll.scrollTo({left:Math.max(0,(affected.x+104)*canvasZoom-scroll.clientWidth/2),top:Math.max(0,(affected.y+80)*canvasZoom-scroll.clientHeight/2),behavior:'smooth'});
+      alertToast(`Power deficit: ${fmt(grid.demand)} required, ${fmt(grid.supply)} supplied. Highlighted ${grid.nodes.length} connected facilities.`,true);
+    }
+    return;
+  }
   if(action==='select'||action==='inspect'){
     selection(id);
     if(action==='inspect'){const node=byId(id),scroll=$('#editor-scroll');if(node)scroll.scrollTo({left:Math.max(0,(node.x+104)*canvasZoom-scroll.clientWidth/2),top:Math.max(0,(node.y+79)*canvasZoom-scroll.clientHeight/2),behavior:'smooth'});}
