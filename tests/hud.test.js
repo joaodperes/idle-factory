@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildHudMetrics,renderHudHtml} from '../src/core/hud.js';
 
-const fmt=n=>String(n);
+const fmt=n=>String(Number(n.toFixed(1)));
 const money=n=>String(n)+' cr';
 const catalog={facilities:{
   mine:{name:'Mine',unlock:0,slots:1},
@@ -35,7 +35,7 @@ test('power shows demand/generation once, with spare only on the detail line',()
   const a=buildHudMetrics(state(),catalog,grid([{supply:28.8,demand:22}]),opts);
   const power=a.find(x=>x.label.startsWith('POWER'));
   assert.equal(power.value,'22 / 28.8');
-  assert.equal(power.detail,'6.800000000000001 spare'.replace('6.800000000000001','6.800000000000001')); // exact arithmetic is formatter-owned
+  assert.equal(power.detail,'6.8 spare');
   assert.equal(Math.round(power.progress),76);
   assert.equal(power.warning,false);
   const html=renderHudHtml([power]);
