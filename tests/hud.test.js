@@ -52,9 +52,9 @@ test('isolated deficits flag warnings even if the global sum has surplus',()=>{
 });
 
 test('level progress explains XP and research is a different spendable currency',()=>{
-  const a=buildHudMetrics(state({xp:60,data:12}),catalog,grid([]),opts);
+  const a=buildHudMetrics(state({xp:80,data:12}),catalog,grid([]),opts);
   assert.equal(a[2].value,'2');
-  assert.match(a[2].detail,/180 XP to level 3/);
+  assert.match(a[2].detail,/85 XP to level 3/);
   assert.equal(a[3].value,'12');
   assert.match(a[3].title,/not experience/);
 });
