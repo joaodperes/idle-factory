@@ -333,8 +333,8 @@ function renderContracts(){
     const pct=Math.min(100,100*reserved/order.amount),timePct=100*remaining/Math.max(1,order.expiresAt-order.createdAt);
     const inactive=!!state.autoSell[order.resource];
     const guidance=inactive
-      ? 'Auto Sell is ON. Previously reserved goods stay committed; turn it OFF to collect more.'
-      : 'Goods reaching a warehouse or terminal are secured for this order. Earlier deadlines have priority.';
+      ? 'Auto Sell ON · reserve contract goods first, then sell the excess automatically.'
+      : 'Auto Sell OFF · reserve contract goods first, then keep the remaining stock.';
     return `<article class="contract urgent-order ${remaining<45?'urgent':''}">
       <div class="contract-top"><div><div class="eyebrow">${safe(resource?.name||order.resource)} · LIVE CUSTOMER</div><h3>${safe(template?.title||'Commercial order')}</h3></div><strong class="value">+${money(order.reward*(1+talentModifier(state,'contracts')))}</strong></div>
       <div class="order-deadline"><strong>⏱ ${timeLabel(remaining)} remaining</strong><div class="progress"><span style="width:${timePct}%"></span></div></div>
@@ -346,7 +346,7 @@ function renderContracts(){
   $('#contracts-list').innerHTML=`<div class="orders-summary"><strong>${orders.length} / ${available} active customer orders</strong><small>${stats.fulfilled} fulfilled · ${stats.expired} expired · New offers arrive during active play</small></div>${tiles||'<p class="muted">Waiting for incoming orders… Keep production running and check back shortly.</p>'}`;
   $('#market-list').innerHTML=Object.entries(catalog.resources).filter(([,r])=>r.price>0).map(([id,r])=>{
     const qty=availableStock(state,id),auto=state.autoSell[id];
-    return `<div class="market-row"><div class="market-name"><span class="market-dot" style="background:${r.color}"></span><div><strong>${safe(r.name)}</strong><small>${fmt(qty)} stored in terminals / warehouses · ${money(price(state,catalog,id))}/unit</small></div></div><div class="market-actions"><button data-action="autosell" data-id="${id}" title="Toggle automatic sale; disable to reserve goods for timed contracts">${auto?'AUTO ON':'AUTO OFF'}</button><button data-action="sell" data-id="${id}" ${qty>0?'':'disabled'}>Sell</button></div></div>`;
+    return `<div class="market-row"><div class="market-name"><span class="market-dot" style="background:${r.color}"></span><div><strong>${safe(r.name)}</strong><small>${fmt(qty)} stored in terminals / warehouses · ${money(price(state,catalog,id))}/unit</small></div></div><div class="market-actions"><button data-action="autosell" data-id="${id}" title="Auto Sell ON prioritizes active contracts, then sells surplus; OFF retains surplus for manual sale">${auto?'AUTO ON':'AUTO OFF'}</button><button data-action="sell" data-id="${id}" ${qty>0?'':'disabled'}>Sell</button></div></div>`;
   }).join('');
 }
 let renderedTreeLevel=null;
@@ -583,7 +583,7 @@ function handleAction(button){
   }
   if(action==='contract'){runAction(completeContract(state,catalog,id),'Contract fulfilled');return;}
   if(action==='autosell'){
-    state.autoSell[id]=!state.autoSell[id];runAction(null,state.autoSell[id]?'Auto-selling enabled':'Goods reserved for contracts');return;
+    state.autoSell[id]=!state.autoSell[id];runAction(null,state.autoSell[id]?'Auto Sell ON: contracts first, surplus sold':'Auto Sell OFF: contracts first, surplus stored');return;
   }
   if(action==='sell'){
     const qty=marketQuantity(state,id);
