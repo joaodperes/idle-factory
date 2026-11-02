@@ -124,5 +124,50 @@
     "slots": 1,
     "unlock": 0,
     "color": "#77b5e7"
+  },
+  "warehouse": {
+    "name": "Warehouse",
+    "icon": "▥",
+    "category": "Logistics",
+    "description": "Stores up to 600 units of each material and routes goods onward. Upgrade to expand its buffer.",
+    "cost": 700,
+    "storage": 600,
+    "slots": 2,
+    "unlock": 500,
+    "color": "#80a7cc"
+  },
+  "fusion": {
+    "name": "Fusion Foundry",
+    "icon": "✹",
+    "category": "Engineering",
+    "description": "Engineer-only advanced metal producer: 7 Ore/s → 4.5 Refined Metal/s.",
+    "cost": 8500,
+    "demand": 8,
+    "inputs": {
+      "ore": 7
+    },
+    "output": "metal",
+    "rate": 4.5,
+    "slots": 4,
+    "unlock": 12000,
+    "talentUnlock": "engineer_t7_c1",
+    "color": "#e27d48"
+  },
+  "quantumlab": {
+    "name": "Quantum Research Lab",
+    "icon": "⚗",
+    "category": "Science",
+    "description": "Scientist-only advanced lab converting Devices into Research Data at high speed.",
+    "cost": 17500,
+    "demand": 10,
+    "inputs": {
+      "devices": 0.45
+    },
+    "output": "data",
+    "rate": 2,
+    "slots": 4,
+    "unlock": 15000,
+    "talentUnlock": "scientist_t7_c1",
+    "color": "#d79ae8"
   }
 }
