@@ -39,6 +39,17 @@ Already have a factory? Click **? → Start guided walkthrough** to practice in 
 
 The link renderer uses live DOM measurements of input and output port centers, not approximate pixel offsets. Endpoints remain aligned when a node is dragged, resized, or scrolled.
 
+## Reading the resource HUD
+
+- **Credits** are the current spendable balance. Building and upgrading facilities consume them.
+- **Run Revenue** is everything this company has earned, even after spending credits. Revenue unlocks facilities and additional per-type limits and contributes to prestige rewards. The HUD shows the next milestone.
+- **Factory Level** is driven by persistent Factory XP from sales (base 12% of earnings) and contracts. It expands industrial slots and awards talent points; it is not another currency.
+- **Research Data** is produced only by suitably powered and supplied Research Labs and spent on technologies.
+- **Power** shows current demand / total generation with a single spare-capacity figure and a usage bar. Disconnected grids can be short of power despite global surplus; these shortages take priority over the spare figure.
+- **Capacity** is global industrial slots used / available. **Angels** are persistent prestige-investment points.
+
+Each metric has an explanation on hover/focus; after the tutorial, most metrics also navigate to their relevant game tab.
+
 ## Game mechanics
 
 - **Factory:** graph of machines with typed material and power ports, throughput limits, input and output buffers and isolated electrical networks. Power indicators show **available / generated** power, with separate warnings for disconnected grids.
@@ -49,7 +60,7 @@ The link renderer uses live DOM measurements of input and output port centers, n
 - **Research Lab:** unlocks at 4,000 company-run revenue and costs 3,500 credits. Connect Devices (0.1/s) and power (3 units) to create research data.
 - **Diagram routing:** lines are routed outside factory cards using orthogonal paths with rounded corners and update when dragging or zooming. If another card physically blocks a port, a warning marker replaces an impossible route until the cards are separated.
 - **Contracts and market:** sell or reserve goods, fulfill orders, earn credits, and react to changing prices.
-- **Management:** select an Industrial Engineer, Automation Architect or Commercial Strategist specialization and purchase talents as XP increases.
+- **Factory progression & talents:** earn Factory XP from sales and contracts. Factory Levels increase industrial capacity and unlock talent points at Level 5. Combine nodes across three connected talent trees, meeting per-tier level/spend prerequisites; certain doctrines are mutually exclusive and can be respeced.
 - **Research and investors:** unlock research through a working laboratory; reset the company for lasting angel-investor upgrades and reusable paid factory blueprints.
 - **Saves:** browser localStorage under `idle-factory-save-v3`, plus portable, versioned JSON exports and imports. No account or cross-device sync.
 
