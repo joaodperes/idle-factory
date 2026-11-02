@@ -1,11 +1,30 @@
+import {tickOrders,fulfillOrder,availableStock,reserveStoredStock,reserveStoredResource} from './orders.js';
+import {researchModifier} from './research.js';
+import {factoryLevel,freeTalentPoints,talentModifier} from './talents.js';
 /** Deterministic discrete-time factory engine. All production flows through saved graph edges. */
 const OUTPUT_LIMIT=120;
+const recentMarketSales=new WeakMap();
+const recentProduction=new WeakMap();
+const recentDiagnostics=new WeakMap();
+/** Last simulated interval: reasons a machine operated below its potential, and actual input delivery rates. */
+export function productionDiagnostics(node){return recentDiagnostics.get(node)||{limits:{},received:{},consumed:{},seconds:0};}
+/** Measured output during the last simulation update, not a theoretical catalog rate. */
+export function productionActivity(node){return recentProduction.get(node)||{produced:0,seconds:0,rate:0};}
+/** Sales made during the most recent simulation update (not cumulative inventory). */
+export function marketActivity(node){return recentMarketSales.get(node)||{units:0,revenue:0};}
 const BASE_LINK_RATE=3;
-const BRANCH={lean:'engineer',precision:'engineer',grid:'engineer',routing:'architect',storage:'architect',automation:'architect',pricing:'strategist',negotiation:'strategist',seed:'strategist'};
-const getTalent=(s,id)=>BRANCH[id]===s.specialization?(s.talents[id]||0):0;
+/** Warehouses preserve a full buffer for each material before selling; dispatch is slower than a direct route. */
+export const WAREHOUSE_TRADE_SPEED=0.75;
+const bonus=(state,key)=>talentModifier(state,key);
 const getResearch=(s,id)=>s.research[id]===true;
-export function capacity(state,node){return (node.kind==='market'?600:OUTPUT_LIMIT)*(1+0.5*getTalent(state,'storage'));}
-export function linkRate(state){return BASE_LINK_RATE*(1+0.4*getTalent(state,'routing')+0.2*(state.investments.patents||0))*(getResearch(state,'logistics')?1.5:1);}
+export function capacity(state,node){return (node.kind==='market'?600:node.kind==='warehouse'?600:OUTPUT_LIMIT)*(1+bonus(state,'storage')+(node.kind==='warehouse'?bonus(state,'warehouseCapacity'):0))*(1+0.25*(node.level-1));}
+/** Maximum output when powered and supplied; compare with measured productionActivity(). */
+export function maxProductionRate(state,node,catalog){
+  const def=catalog.facilities[node.kind];if(!def?.output)return 0;
+  const speed=(1+0.5*(node.level-1)+bonus(state,'speed'))*(1+researchModifier(state,'speed'));
+  return def.rate*speed*(1+0.1*(state.investments.engineering||0))*(1+researchModifier(state,'output'))*(1+bonus(state,'output'))*(def.output==='data'?(1+bonus(state,'labOutput')+researchModifier(state,'labOutput')):1);
+}
+export function linkRate(state){return BASE_LINK_RATE*(1+bonus(state,'routing')+0.2*(state.investments.patents||0))*(1+researchModifier(state,'routing'));}
 export function priceMultiplier(state,resource){
   const order=['ore','metal','parts','circuits','devices'];
   const idx=Math.max(0,order.indexOf(resource));
@@ -13,28 +32,39 @@ export function priceMultiplier(state,resource){
 }
 export function price(state,catalog,resource){
   const base=catalog.resources[resource]?.price||0;
-  return base*priceMultiplier(state,resource)*(1+0.15*getTalent(state,'pricing'))*(1+0.1*(state.investments.dividends||0))*(getResearch(state,'market')?1.2:1);
+  return base*priceMultiplier(state,resource)*(1+bonus(state,'pricing'))*(1+0.1*(state.investments.dividends||0))*(1+researchModifier(state,'pricing'));
 }
 export function sell(state,catalog,resource,amount){
+  // Both manual and automatic sales must leave active contract allocations untouched.
+  reserveStoredStock(state);
   let remaining=amount;
   let sold=0;
+  const unitPrice=price(state,catalog,resource)*(state.autoSell[resource]?(1+bonus(state,'autoPricing')):1);
   for(const node of state.nodes){
-    if(node.kind!=='market')continue;
+    if(node.kind!=='market')continue; // Stored warehouse goods must reach a Trade Terminal through a graph link.
     const take=Math.min(remaining,node.buffer[resource]||0);
     if(take<=0)continue;
     node.buffer[resource]-=take;remaining-=take;sold+=take;
+    const activity=marketActivity(node);
+    recentMarketSales.set(node,{units:activity.units+take,revenue:activity.revenue+take*unitPrice});
     if(remaining<=0)break;
   }
-  if(sold>0){const earned=sold*price(state,catalog,resource);earn(state,earned);}
+  if(sold>0)earn(state,sold*unitPrice);
   return sold;
 }
 export function earn(state,amount,bonusXp=0){
   if(!Number.isFinite(amount)||amount<=0)return;
   state.credits+=amount;state.runRevenue+=amount;state.lifetimeRevenue+=amount;
-  state.xp+=amount*0.12+bonusXp;
+  state.xp+=(amount*0.12+bonusXp)*(1+bonus(state,'xp'));
 }
-export function managerLevel(state){return Math.min(70,1+Math.floor(Math.sqrt(state.xp/180)));}
-export function availableTalentPoints(state){return Math.max(0,managerLevel(state)-1-Object.values(state.talents).reduce((a,b)=>a+b,0));}
+export function managerLevel(state){return factoryLevel(state);}
+export function availableTalentPoints(state){return freeTalentPoints(state);}
+/** Every generator contributes to its network; links do not multiply its power. */
+export function generatorOutput(state,node,catalog){
+  const def=catalog.facilities[node.kind];if(!def?.power||!node.enabled)return 0;
+  const levelScale=node.kind==='solar'?1+(node.level-1):1+0.5*(node.level-1);
+  return def.power*levelScale*(1+bonus(state,'powerGeneration'))*(node.kind==='solar'?(1+researchModifier(state,'solarPower')+bonus(state,'solarPower')):1);
+}
 export function gridStatus(state,catalog){
   const ids=new Map(state.nodes.map((n,i)=>[n.id,i]));
   const parent=state.nodes.map((_,i)=>i);
@@ -48,8 +78,8 @@ export function gridStatus(state,catalog){
     if(!groups.has(root))groups.set(root,{supply:0,demand:0,nodes:[]});
     const g=groups.get(root);g.nodes.push(node.id);
     if(!node.enabled)continue;
-    g.supply+=(def.power||0)*(1+0.2*(node.level-1));
-    g.demand+=(def.demand||0)*(1-0.15*getTalent(state,'grid'))*(getResearch(state,'energy')?0.8:1);
+    g.supply+=generatorOutput(state,node,catalog);
+    g.demand+=(def.demand||0)*Math.max(0.25,1-bonus(state,'powerSavings'))*Math.max(0.3,1-researchModifier(state,'powerSavings'));
   }
   const efficiency=new Map();let supply=0,demand=0;
   for(const group of groups.values()){
@@ -58,58 +88,99 @@ export function gridStatus(state,catalog){
   }
   return {efficiency,supply,demand,groups};
 }
-export function contractAvailable(state,contract){return (state.contractRuns[contract.id]||0)<=state.runElapsed;}
-export function marketQuantity(state,resource){return state.nodes.filter(n=>n.kind==='market').reduce((s,n)=>s+(n.buffer[resource]||0),0);}
-export function completeContract(state,catalog,id){
-  const contract=catalog.contracts.find(c=>c.id===id);
-  if(!contract)return 'Contract unavailable';
-  if(!contractAvailable(state,contract))return 'Contract is on cooldown';
-  if(marketQuantity(state,contract.resource)+1e-7<contract.amount)return 'Not enough goods at trade terminals';
-  let remaining=contract.amount;
-  for(const n of state.nodes){if(n.kind!=='market')continue;const taken=Math.min(remaining,n.buffer[contract.resource]||0);n.buffer[contract.resource]-=taken;remaining-=taken;}
-  const bonus=1+0.2*getTalent(state,'negotiation');
-  earn(state,contract.reward*bonus,contract.xp);
-  state.contractRuns[id]=state.runElapsed+120;
-  state.runContracts++;state.contractsFilled++;
-  return null;
-}
+export function contractAvailable(state,order){return !!order&&state.orders?.some(o=>o.id===order.id&&o.expiresAt>=(state.orderClock||0));}
+export function marketQuantity(state,resource){return state.nodes.filter(n=>n.kind==='market').reduce((sum,n)=>sum+(n.buffer[resource]||0),0);}
+export function completeContract(state,catalog,id){return fulfillOrder(state,catalog,id,earn);}
 function produceOneSecond(state,catalog,dt,offlineFactor){
   const defs=catalog.facilities, {efficiency}=gridStatus(state,catalog);
   const rate=linkRate(state)*dt;
+  // Pre-existing warehouse inventory must be committed before downstream routes draw from it.
+  reserveStoredStock(state);
   const lookup=new Map(state.nodes.map(n=>[n.id,n]));
-  for(const edge of state.edges){
-    if(edge.resource==='power')continue;
+  // Deliver incoming goods before warehouse-to-terminal dispatch, independent of edge creation order.
+  const warehouseTrade=edge=>lookup.get(edge.from)?.kind==='warehouse'&&lookup.get(edge.to)?.kind==='market';
+  const routes=state.edges.filter(edge=>edge.resource!=='power')
+    .sort((a,b)=>Number(warehouseTrade(a))-Number(warehouseTrade(b)));
+  for(const edge of routes){
     const from=lookup.get(edge.from),to=lookup.get(edge.to);
     if(!from||!to||!from.enabled||!to.enabled)continue;
     const available=from.buffer[edge.resource]||0;
     const free=Math.max(0,capacity(state,to)-(to.buffer[edge.resource]||0));
-    const qty=Math.min(available,free,rate);
-    if(qty>0){from.buffer[edge.resource]=available-qty;to.buffer[edge.resource]=(to.buffer[edge.resource]||0)+qty;}
+    const overflowRoute=warehouseTrade(edge);
+    // Warehouse -> Trade Terminal: release only at a FULL buffer for this resource.
+    // Contract allocations have already been removed from the warehouse buffer.
+    if(overflowRoute&&available+1e-7<capacity(state,from))continue;
+    const qty=Math.min(available,free,rate*(overflowRoute?WAREHOUSE_TRADE_SPEED:1));
+    if(qty>0){
+      from.buffer[edge.resource]=available-qty;to.buffer[edge.resource]=(to.buffer[edge.resource]||0)+qty;
+      // Commit goods immediately on arrival, before later graph edges can consume them.
+      reserveStoredResource(state,to,edge.resource);
+      const diag=recentDiagnostics.get(to);
+      if(diag)diag.received[edge.resource]=(diag.received[edge.resource]||0)+qty;
+    }
   }
   for(const node of state.nodes){
     const def=defs[node.kind];
     if(!node.enabled||!def||!def.output)continue;
     const efficiencyFactor=efficiency.get(node.id)||0;
-    const speed=(1+0.25*(node.level-1)+0.15*getTalent(state,'precision'))*(getResearch(state,'robotics')?1.5:1);
-    let factor=speed*efficiencyFactor*offlineFactor;
+    const speed=(1+0.5*(node.level-1)+bonus(state,'speed'))*(1+researchModifier(state,'speed'));
+    const idealFactor=speed;
+    const powerFactor=speed*efficiencyFactor*offlineFactor;
     const inputs=def.inputs||{};
-    for(const [resource,need] of Object.entries(inputs)){
-      const cost=need*dt*(1-0.1*getTalent(state,'lean'));
-      if(cost>0)factor=Math.min(factor,(node.buffer[resource]||0)/cost);
+    const inputLimits=Object.entries(inputs).map(([resource,need])=>{
+      const cost=need*dt*Math.max(0.2,1-bonus(state,'inputSavings'));
+      return {resource,cap:cost>0?(node.buffer[resource]||0)/cost:Infinity,cost};
+    });
+    const outputUnit=def.rate*dt*(1+0.1*(state.investments.engineering||0))*(1+researchModifier(state,'output'))*(1+bonus(state,'output'))*(def.output==='data'?(1+bonus(state,'labOutput')+researchModifier(state,'labOutput')):1);
+    const spaceCap=def.output==='data'?Infinity:Math.max(0,capacity(state,node)-(node.buffer[def.output]||0))/outputUnit;
+    const factor=Math.min(powerFactor,spaceCap,...inputLimits.map(input=>input.cap));
+    const diag=recentDiagnostics.get(node);
+    if(diag){
+      const reasons=[];
+      if(offlineFactor<0.999&&powerFactor<idealFactor-1e-8&&Math.abs(powerFactor-factor)<1e-7)reasons.push('offline');
+      if(efficiencyFactor<0.999&&Math.abs(powerFactor-factor)<1e-7)reasons.push('power');
+      if(spaceCap<idealFactor-1e-8&&Math.abs(spaceCap-factor)<1e-7)reasons.push('storage');
+      for(const input of inputLimits)if(input.cap<idealFactor-1e-8&&Math.abs(input.cap-factor)<1e-7)reasons.push(input.resource);
+      for(const reason of reasons)diag.limits[reason]=(diag.limits[reason]||0)+dt;
     }
-    factor=Math.min(factor,Math.max(0,capacity(state,node)-(node.buffer[def.output]||0))/(def.rate*dt*(1+0.1*(state.investments.engineering||0))*(getResearch(state,'yield')?1.25:1)));
     if(factor<=0)continue;
-    for(const [resource,need] of Object.entries(inputs))node.buffer[resource]=Math.max(0,(node.buffer[resource]||0)-need*dt*(1-0.1*getTalent(state,'lean'))*factor);
-    const output=def.rate*dt*factor*(1+0.1*(state.investments.engineering||0))*(getResearch(state,'yield')?1.25:1);
+    for(const input of inputLimits){
+      const used=input.cost*factor;
+      node.buffer[input.resource]=Math.max(0,(node.buffer[input.resource]||0)-used);
+      if(diag)diag.consumed[input.resource]=(diag.consumed[input.resource]||0)+used;
+    }
+    const output=def.rate*dt*factor*(1+0.1*(state.investments.engineering||0))*(1+researchModifier(state,'output'))*(1+bonus(state,'output'))*(def.output==='data'?(1+bonus(state,'labOutput')+researchModifier(state,'labOutput')):1);
     if(def.output==='data'){state.data+=output;}else node.buffer[def.output]=(node.buffer[def.output]||0)+output;
+    const activity=productionActivity(node);
+    recentProduction.set(node,{produced:activity.produced+output,seconds:activity.seconds,rate:activity.rate});
   }
-  for(const id of Object.keys(catalog.resources))if(state.autoSell[id]&&catalog.resources[id].price>0&&(id==='metal'||(state.specialization==='architect'&&getTalent(state,'automation'))))sell(state,catalog,id,Infinity);
+  for(const id of Object.keys(catalog.resources))if(state.autoSell[id]&&catalog.resources[id].price>0)sell(state,catalog,id,Infinity);
   state.elapsed+=dt;state.runElapsed+=dt;
 }
 export function simulate(state,catalog,seconds,{offline=false}={}){
+  for(const node of state.nodes){
+    if(node.kind==='market')recentMarketSales.set(node,{units:0,revenue:0});
+    if(catalog.facilities[node.kind]?.output){
+      recentProduction.set(node,{produced:0,seconds:0,rate:0});
+      recentDiagnostics.set(node,{limits:{},received:{},consumed:{},seconds:0});
+    }
+  }
   let duration=Math.max(0,Math.min(offline?8*3600:3600,seconds));
-  const efficiency=offline?(getResearch(state,'offline')?1:0.5):1;
-  while(duration>1e-7){const dt=Math.min(1,duration);produceOneSecond(state,catalog,dt,efficiency);duration-=dt;}
+  const efficiency=offline?Math.min(1,0.5+researchModifier(state,'offlinePower')):1;
+  const simulated=duration;
+  while(duration>1e-7){
+    const dt=Math.min(1,duration);
+    if(!offline&&state.onboarding)tickOrders(state,catalog,dt);
+    produceOneSecond(state,catalog,dt,efficiency);
+    duration-=dt;
+  }
+  for(const node of state.nodes){
+    const def=catalog.facilities[node.kind];if(!def?.output)continue;
+    const activity=productionActivity(node);
+    recentProduction.set(node,{produced:activity.produced,seconds:simulated,rate:simulated>0?activity.produced/simulated:0});
+    const diag=recentDiagnostics.get(node);
+    if(diag)diag.seconds=simulated;
+  }
 }
-export function prestigeGain(state){return Math.max(0,Math.floor(Math.sqrt(state.runRevenue/2500)+state.runContracts*0.35));}
+export function prestigeGain(state){return Math.max(0,Math.floor((Math.sqrt(state.runRevenue/2500)+state.runContracts*0.35)*(1+bonus(state,'angelGain'))));}
 export function companyValue(state,catalog){return state.credits+state.nodes.reduce((sum,n)=>sum+catalog.facilities[n.kind].cost*n.level,0)+state.runRevenue*0.4;}

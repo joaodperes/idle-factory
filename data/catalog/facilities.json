@@ -1,11 +1,173 @@
 {
-  "generator":{"name":"Power Station","icon":"⚡","category":"Utilities","description":"Supplies connected facilities through power links.","cost":160,"power":12,"slots":2,"unlock":0,"color":"#cfab61"},
-  "solar":{"name":"Solar Array","icon":"☀️","category":"Utilities","description":"Efficient but lower-output grid power.","cost":900,"power":7,"slots":2,"unlock":1000,"color":"#cfab61"},
-  "mine":{"name":"Ore Extractor","icon":"⛏","category":"Extraction","description":"Pulls raw ore from beneath the factory.","cost":90,"demand":1,"output":"ore","rate":3,"slots":1,"unlock":0,"color":"#5cb6a7"},
-  "smelter":{"name":"Smelter","icon":"♨","category":"Processing","description":"Converts raw ore into refined metal.","cost":125,"demand":2,"inputs":{"ore":3},"output":"metal","rate":1.5,"slots":2,"unlock":0,"color":"#e0a66a"},
-  "press":{"name":"Precision Press","icon":"⚙","category":"Processing","description":"Presses metal into mechanical parts.","cost":360,"demand":2,"inputs":{"metal":1.5},"output":"parts","rate":1,"slots":2,"unlock":300,"color":"#83a9f5"},
-  "etcher":{"name":"Circuit Etcher","icon":"◇","category":"Processing","description":"Etches circuits out of refined metal.","cost":800,"demand":3,"inputs":{"metal":1},"output":"circuits","rate":0.5,"slots":2,"unlock":950,"color":"#ae91e7"},
-  "assembler":{"name":"Assembly Line","icon":"▣","category":"Manufacturing","description":"Combines parts and circuits into devices.","cost":1900,"demand":4,"inputs":{"parts":1,"circuits":0.5},"output":"devices","rate":0.5,"slots":3,"unlock":2000,"color":"#59bd94"},
-  "lab":{"name":"Research Lab","icon":"◈","category":"Research","description":"Studies finished devices to produce research data.","cost":3500,"demand":3,"inputs":{"devices":0.1},"output":"data","rate":0.4,"slots":3,"unlock":4000,"color":"#d79ae8"},
-  "market":{"name":"Trade Terminal","icon":"▤","category":"Commerce","description":"Receives goods for sales and contract fulfillment.","cost":400,"slots":1,"unlock":0,"color":"#77b5e7"}
+  "generator": {
+    "name": "Power Station",
+    "icon": "⚡",
+    "category": "Utilities",
+    "description": "Supplies connected facilities through power links.",
+    "cost": 160,
+    "power": 12,
+    "slots": 2,
+    "unlock": 0,
+    "color": "#cfab61"
+  },
+  "solar": {
+    "name": "Solar Array",
+    "icon": "☀️",
+    "category": "Utilities",
+    "description": "High-density late-game generator: 30 base power in 2 slots, +100% base output per level; specialized solar research and talents amplify it.",
+    "cost": 900,
+    "power": 30,
+    "slots": 2,
+    "unlock": 1000,
+    "color": "#cfab61"
+  },
+  "mine": {
+    "name": "Ore Extractor",
+    "icon": "⛏",
+    "category": "Extraction",
+    "description": "Pulls raw ore from beneath the factory.",
+    "cost": 90,
+    "demand": 1,
+    "output": "ore",
+    "rate": 3,
+    "slots": 1,
+    "unlock": 0,
+    "color": "#5cb6a7"
+  },
+  "smelter": {
+    "name": "Smelter",
+    "icon": "♨",
+    "category": "Processing",
+    "description": "Converts raw ore into refined metal.",
+    "cost": 125,
+    "demand": 2,
+    "inputs": {
+      "ore": 3
+    },
+    "output": "metal",
+    "rate": 1.5,
+    "slots": 2,
+    "unlock": 0,
+    "color": "#e27d48"
+  },
+  "press": {
+    "name": "Precision Press",
+    "icon": "⚙",
+    "category": "Processing",
+    "description": "Presses metal into mechanical parts.",
+    "cost": 360,
+    "demand": 2,
+    "inputs": {
+      "metal": 1.5
+    },
+    "output": "parts",
+    "rate": 1,
+    "slots": 2,
+    "unlock": 300,
+    "color": "#83a9f5"
+  },
+  "etcher": {
+    "name": "Circuit Etcher",
+    "icon": "◇",
+    "category": "Processing",
+    "description": "Etches circuits out of refined metal.",
+    "cost": 800,
+    "demand": 3,
+    "inputs": {
+      "metal": 1
+    },
+    "output": "circuits",
+    "rate": 0.5,
+    "slots": 2,
+    "unlock": 950,
+    "color": "#ae91e7"
+  },
+  "assembler": {
+    "name": "Assembly Line",
+    "icon": "▣",
+    "category": "Manufacturing",
+    "description": "Combines parts and circuits into devices.",
+    "cost": 1900,
+    "demand": 4,
+    "inputs": {
+      "parts": 1,
+      "circuits": 0.5
+    },
+    "output": "devices",
+    "rate": 0.5,
+    "slots": 3,
+    "unlock": 2000,
+    "color": "#59bd94"
+  },
+  "lab": {
+    "name": "Research Lab",
+    "icon": "◈",
+    "category": "Research",
+    "description": "Studies finished devices to produce research data.",
+    "cost": 3500,
+    "demand": 3,
+    "inputs": {
+      "devices": 0.1
+    },
+    "output": "data",
+    "rate": 0.4,
+    "slots": 3,
+    "unlock": 4000,
+    "color": "#d79ae8"
+  },
+  "market": {
+    "name": "Trade Terminal",
+    "icon": "▤",
+    "category": "Commerce",
+    "description": "Accepts goods through its left input for sales or contracts. It has no output or power requirement; metal sells automatically unless disabled.",
+    "cost": 400,
+    "slots": 1,
+    "unlock": 0,
+    "color": "#77b5e7"
+  },
+  "warehouse": {
+    "name": "Warehouse",
+    "icon": "▥",
+    "category": "Logistics",
+    "description": "Stores 600 per resource (more with upgrades). Releases goods to Trade Terminals only when that resource is full, at 75% normal link speed; production routes remain unrestricted. Reserves contracts first.",
+    "cost": 700,
+    "storage": 600,
+    "slots": 2,
+    "unlock": 500,
+    "color": "#80a7cc"
+  },
+  "fusion": {
+    "name": "Fusion Foundry",
+    "icon": "✹",
+    "category": "Engineering",
+    "description": "Engineer-only advanced metal producer: 7 Ore/s → 4.5 Refined Metal/s.",
+    "cost": 8500,
+    "demand": 8,
+    "inputs": {
+      "ore": 7
+    },
+    "output": "metal",
+    "rate": 4.5,
+    "slots": 4,
+    "unlock": 12000,
+    "talentUnlock": "engineer_t7_c1",
+    "color": "#e27d48"
+  },
+  "quantumlab": {
+    "name": "Quantum Research Lab",
+    "icon": "⚗",
+    "category": "Science",
+    "description": "Scientist-only advanced lab converting Devices into Research Data at high speed.",
+    "cost": 17500,
+    "demand": 10,
+    "inputs": {
+      "devices": 0.45
+    },
+    "output": "data",
+    "rate": 2,
+    "slots": 4,
+    "unlock": 15000,
+    "talentUnlock": "scientist_t7_c1",
+    "color": "#d79ae8"
+  }
 }

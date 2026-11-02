@@ -1,62 +1,103 @@
-# Idle Factory v1.0
+# Idle Factory
 
-**Idle Factory** is a browser-only industrial strategy game. Design production chains on a node diagram, route goods, connect local power grids, fulfill commercial contracts, earn management talents and rebuild with angel investors.
+An offline-first factory planning game. Connect real production machines, balance local power networks, sell finished goods, research improvements, and grow your industrial company across investor resets. All game data comes from versioned JSON catalogs; there is no backend.
 
-**Play:** [joaodperes.github.io/idle-factory/](https://joaodperes.github.io/idle-factory/) (after GitHub Pages is enabled for the repository).
+## Branches and release process
 
-## Gameplay
+- **`main`** is the production release. Only pushes to `main` run the GitHub Pages deployment workflow (`.github/workflows/deploy.yml`).
+- **`dev`** is the integration and playtesting branch. Pushing to `dev` runs validation tests, **not a GitHub Pages deployment** (`.github/workflows/test.yml`).
+- Feature branches can branch off `dev`; merge them back into `dev`, test, and open a pull request from `dev` to `main` only when ready to release.
+- You can preview `dev` locally without publishing or affecting the production game. Browser saves at `localhost` are separate from saves at `joaodperes.github.io` because they're different origins.
 
-1. Your starter network produces ore → metal and automatically sells metal at its trade terminal. Revenue is your building currency.
-2. Click `+` to add facilities. Click an **output port** then a matching **input port** to connect them. Gold ports form the power grid; teal ports transport goods. Drag headers to arrange the diagram and click links to delete them.
-3. Each edge moves a finite quantity per second. Machines need both raw materials and power from their connected grid. Inspect local buffers to diagnose bottlenecks.
-4. Deliver contracts using goods at market terminals, or sell goods for continuously fluctuating market prices. Toggle metal auto-sale **off** to accumulate metal for your first contract.
-5. Earn XP and invest in Industrial Engineer, Automation Architect or Commercial Strategist talent paths. Only the selected path's passive bonuses are active; talent allocations persist.
-6. Research new process improvements with data produced by device-fed laboratories. Sell and rebuild your company to earn angel investors, buy permanent upgrades and reuse a saved factory blueprint.
+## Test a development build locally
 
-## Run & test
+Requires Node.js 20+ and Git.
 
-No third-party dependencies or build tooling are needed. This is a native ES-module app with an SVG/DOM editor.
+```sh
+git clone https://github.com/joaodperes/idle-factory.git
+cd idle-factory
+git switch dev
+npm run dev
+```
 
-```bash
-python3 -m http.server 8000
-# visit http://localhost:8000
+Open **http://127.0.0.1:4173/** in your browser. No `npm install` or paid dependencies are needed. The local server serves the same ES modules, styles, and JSON catalogs as GitHub Pages, with caching disabled. You can choose another port with `npm run dev -- --port 4180`.
+
+Run the automated checks before merging:
+
+```sh
 npm test
 npm run check
 ```
 
-Do not run the game with `file://`; JSON catalogs are fetched over HTTP. Node.js 20+ is recommended for tests.
+The source files can be edited while the server runs; reload the browser to pick up edits. For a completely clean first-run test, use a private window on the local preview or delete only the local preview's site data. **Do not erase production browser data**; export a JSON save first if you intend to reset your hosted game.
 
-## GitHub Pages
+## New-player experience (development branch)
 
-Go to **Settings → Pages → Build and deployment → Source: GitHub Actions**. The included `.github/workflows/deploy.yml` validates and publishes the root folder after every push to `main`. No secrets, server, or database are required.
+A fresh save begins with just a Power Station, an Ore Extractor and sufficient starting credits to complete an eight-step guided factory setup. The walkthrough waits for each actual gameplay action: power the extractor, buy a smelter, send ore, power the smelter, buy a trade terminal, connect metal and observe a first sale. Tutorial controls highlight exactly the next port or build button, with a focus button to navigate the canvas. Other tabs and advanced panels appear on completion (or if the player skips).
 
-## Save and privacy
+Already have a factory? Click **? → Start guided walkthrough** to practice in a temporary factory; the original saved factory is restored when you exit. In-progress and imported v3 saves remain compatible. A company prestige reset starts with a working basic line rather than forcing tutorial replay. Older talent-tree allocations are refunded as Legacy Career Credits rather than discarded; factory XP and saved machinery remain available.
 
-- The browser saves automatically in `localStorage` under `idle-factory-save-v3` every 10 seconds, on page hide, and after player actions.
-- **Settings → Download JSON** exports a portable save. **Import JSON** loads a validated save; make a backup first. Import accepts v2 starter saves as a one-time migration. The original `factory-idle-v2` localStorage entry is not deleted.
-- When loading, the game simulates up to **8 hours** of offline progress at 50% speed (or 100% with Autonomous Operations research). Power, stock and logistics limits remain enforced.
-- Clearing browser site data or changing device/hostname will not transfer saves. No user information is sent to a server.
+The diagram uses live DOM measurements of input and output port centers, including zoom-aware obstacle routing. No consumer machine exposes a power output. Endpoints remain aligned when a node is dragged, resized, or scrolled.
 
-## Files
+## Reading the resource HUD
+
+- **Credits** are the current spendable balance. Building and upgrading facilities consume them.
+- **Run Revenue** is everything this company has earned, even after spending credits. Revenue unlocks facilities and additional per-type limits and contributes to prestige rewards. The HUD shows the next milestone.
+- **Factory Level** is driven by persistent Factory XP from sales (base 12% of earnings) and contracts. It expands industrial slots and awards talent points; it is not another currency.
+- **Research Data** is produced only by suitably powered and supplied Research Labs and spent on technologies.
+- **Power** shows current demand / total generation with a single spare-capacity figure and a usage bar. Disconnected grids can be short of power despite global surplus; these shortages take priority over the spare figure.
+- **Capacity** is global industrial slots used / available. **Angels** are persistent prestige-investment points.
+
+Each metric has an explanation on hover/focus; after the tutorial, most metrics also navigate to their relevant game tab.
+
+## Game mechanics
+
+- **Factory:** graph of machines with typed material and power ports, throughput limits, input and output buffers and isolated electrical networks. Power indicators show **used / generated** power, with separate warnings for disconnected grids.
+- **Direct power:** Only Power Stations and Solar Arrays have electricity output ports. Connect each consuming machine directly to a generator. Old machine-to-machine power relays are migrated into direct generator links when saves load.
+- **Production diagnostics:** machine cards display *measured / ideal* production per second and the named output stock. Inspect a machine to see required inputs, even when empty, and the benefit of its next upgrade.
+- **Factory Level:** Company sales and contracts earn persistent Factory XP. Global industrial capacity starts at 26 slots and grows by +2 slots every three Factory Levels. Permanent **Industrial Estate** investments also grant +3 slots per rank, and select talents add more.
+- **Facility limits:** per-type caps begin at 1–3 machines. Each run-revenue milestone at 5k, 20k, 80k, or 300k adds one permitted machine of each type; every two Industrial Estate ranks add one more. Previously saved machines are never deleted for exceeding revised limits.
+- **Upgrade economy:** level-ups add 50% of base production per level and 25% storage per item; Power Stations add 50% of base power and Solar Arrays add 100% per level. Initial upgrade cost is 55% of a new facility's base cost and rises per level. Duplicates cost +28% multiplicatively beginning with the second copy.
+- **Research Lab:** unlocks at 4,000 company-run revenue and costs 3,500 credits. Connect Devices (0.1/s) and power (3 units) to create research data.
+- **Diagram routing:** lines are routed outside factory cards using orthogonal paths with rounded corners and update when dragging or zooming. If another card physically blocks a port, a warning marker replaces an impossible route until the cards are separated.
+- **Contracts and market:** toggle Auto Sell independently for any saleable resource. Active contracts reserve incoming warehouse/terminal goods first even with Auto Sell ON. Sales require stock to reach a connected Trade Terminal; Auto Sell never bypasses the logistics graph. Orders arrive during active play, expire after a short deadline, and pay substantially above ordinary sales. Deadlines pause while offline.
+- **Factory progression & talents:** earn Factory XP from sales and contracts. Factory Levels increase industrial capacity and unlock talent points at Level 5. Choose one of three exclusive careers: Industrial Engineering, Scientific Research, or Business & Investment. Each contains 28 nodes and 55 possible ranks; invest 49 points in the chosen career, then buy its capstone with point 50 to unlock the next career. No career switch or talent refund before finishing the active capstone. Returning players receive credits for points spent on superseded talents.
+- **Production health:** Cards show actual / ideal rates, but the inspector leads with a single plain-English problem and a recommended next action. Detailed throughput and inventory are collapsed under Technical details. The factory overview identifies underperformers and clickable power warnings highlight/center the affected electrical grid.
+- **Contracts:** Customer orders reserve their requested goods as production reaches a warehouse or Trade Terminal, regardless of Auto Sell. Reserved inventory is locked for delivery and pays credits and Factory XP; surplus remains available to production or terminal sales.
+- **Research:** 18 connected technologies with steeply escalating costs (12–12,000 Research Data). Industrial Robotics versus Autonomous Operations is an exclusive research choice until late scientific unification. Scientist career talents grant strong research discounts, laboratory output boosts and the ability to unify rival branches. Ongoing licensing remains available after six technologies.
+- **Warehouses:** a 600-unit buffer **per material**, upgradeable and connectable between producers, consumers and Trade Terminals. For warehouse → Trade Terminal links, each material must reach **100% of that warehouse's buffer** before dispatch; subsequent overflow uses **75% normal link throughput**. Warehouse → production links work normally. Unlike a direct producer → terminal connection, a warehouse costs 700 credits and two industrial slots, ties up inventory until full, and has a slower shipping link. Warehouses still reserve active contract goods immediately, before any forwarding or sale. Auto Sell affects only free stock that has physically arrived at a Trade Terminal; direct producer → terminal routes provide faster cash flow.
+- **Customer orders:** rolling, overlapping contracts (three slots initially) arrive during active play, each with an individual expiry timer and high delivery bonus. Expired orders disappear and count as missed. Browser-hidden/offline time doesn't advance order deadlines. Commercial talents extend deadlines, add order slots, increase payouts and improve angel returns.
+- **Career facilities:** the Engineering path can unlock a Fusion Foundry; the Scientist path can unlock a Quantum Research Lab. Business capstone and higher ranks improve angel investor returns.
+- **Factory XP:** incremental XP per level grows approximately 14% geometrically plus a small linear term; first talent at Factory Level 5, the first 50-point capstone near Level 54, and subsequent careers require much greater progress. Factory Level caps at 110 to prevent completing all three careers in one save.
+- **Power:** A single Power Station can supply multiple consumers, but its output is one shared budget; multiple generators can feed the same electrical grid. Solar Arrays start at 30 power in 2 slots and scale +100% base per level versus basic stations at 12 and +50%; solar-focused technologies and talents increase them further.
+- **Investors:** Angels are the persistent currency for Permanent Investments, earned from company restart, never spendable Credits or Research Data. Investments, talent points and Factory XP survive investor resets.
+- **Saves:** browser localStorage under `idle-factory-save-v3`, plus portable, versioned JSON exports and imports. No account or cross-device sync.
+
+## Project layout
 
 ```text
-index.html                    Game UI
-src/main.js                   Rendering, input events, storage wiring
-src/styles.css                Responsive industrial-theme interface
-src/core/engine.js            Headless factory simulation and economics
-src/core/graph.js             Construction, connections and capacity
-src/core/actions.js           Upgrades, talents, research, resets, layouts
-src/core/state.js             Save validation and migration
-src/core/catalog.js           Static JSON data loading
-src/core/format.js            Number/time formatting
-data/catalog/*.json           Facilities, resources, research, talents, contracts, investments
-.github/workflows/            Automated Node tests and Pages deployment
-tests/                        Deterministic gameplay and save tests
+index.html                     Browser UI
+src/main.js                    Game rendering, input and onboarding UI
+src/styles.css                 App styling
+src/core/tutorial.js           Testable guided progression
+src/core/engine.js             Deterministic economy and production
+src/core/graph.js              Facility and connection operations
+src/core/actions.js            Investments, prestige, research, layouts
+src/core/research.js           Branching technologies, modifiers, licensing
+src/core/orders.js             Timed live contracts and warehouse-eligible fulfillment
+src/core/state.js              Versioned saves and starter factories
+src/core/catalog.js            JSON catalog loader
+data/catalog/*.json            Game definitions and balance
+scripts/dev-server.mjs         Dependency-free local HTTP preview
+tests/                         Automated simulation / tutorial tests
+.github/workflows/             Separate dev validation and main deployment
 ```
 
-## Design constraints
+## Hosted production
 
-This is intentionally a **compact, self-contained 1.0**, not a heavyweight spatial logistics simulator. Power shares supply inside each connected power network. Material links have bounded throughput; each facility has bounded inventories. Contracts and prices encourage different products and layouts. Power and material links can be disconnected or rearranged at any time. Blueprints are planning templates, not free machines: applying one recycles the previous layout and purchases the target layout using available credits.
+[Play the production version](https://joaodperes.github.io/idle-factory/) · [Source repository](https://github.com/joaodperes/idle-factory)
+
+GitHub Pages uses **Settings → Pages → Build and deployment → Source: GitHub Actions**, and deploys the `main` branch only. The `dev` branch is deliberately **not deployed**.
 
 ## License
 

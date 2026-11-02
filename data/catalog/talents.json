@@ -1,5 +1,1277 @@
 {
-  "engineer":{"name":"Industrial Engineer","icon":"⚙","description":"Better production efficiency and grid reliability.","talents":[{"id":"lean","name":"Lean Manufacturing","description":"10% less material consumption per rank.","max":3},{"id":"precision","name":"Process Optimization","description":"15% faster production per rank.","max":3},{"id":"grid","name":"Grid Engineering","description":"15% less power demand per rank.","max":3}]},
-  "architect":{"name":"Automation Architect","icon":"⌘","description":"Move goods faster and orchestrate complex factories.","talents":[{"id":"routing","name":"High-speed Routing","description":"40% more link throughput per rank.","max":3},{"id":"storage","name":"Smart Warehousing","description":"50% more node storage per rank.","max":3},{"id":"automation","name":"Auto-trading","description":"Automatically sell market inventory not reserved for contracts.","max":1}]},
-  "strategist":{"name":"Commercial Strategist","icon":"◆","description":"Optimize margins and win better commercial contracts.","talents":[{"id":"pricing","name":"Market Insight","description":"15% more revenue on sales per rank.","max":3},{"id":"negotiation","name":"Negotiation","description":"20% more contract rewards per rank.","max":3},{"id":"seed","name":"Seed Capital","description":"Start each new company with 200 extra credits per rank.","max":3}]}
+  "engineer": {
+    "name": "Industrial Engineering",
+    "icon": "⚙",
+    "color": "#75b7f9",
+    "description": "Machine mastery, high-density power and exclusive production facilities.",
+    "nodes": [
+      {
+        "id": "engineer_t1_c1",
+        "name": "Industrial Calibration",
+        "icon": "✦",
+        "description": "Machine output +6% per rank.",
+        "tier": 1,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "output": 0.06
+        },
+        "requires": []
+      },
+      {
+        "id": "engineer_t1_c2",
+        "name": "Power Optimization",
+        "icon": "◇",
+        "description": "Electrical demand -6% per rank.",
+        "tier": 1,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "powerSavings": 0.06
+        },
+        "requires": []
+      },
+      {
+        "id": "engineer_t1_c3",
+        "name": "Lean Materials",
+        "icon": "◆",
+        "description": "Input consumption -6% per rank.",
+        "tier": 1,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "inputSavings": 0.06
+        },
+        "requires": []
+      },
+      {
+        "id": "engineer_t2_c1",
+        "name": "Precision Assembly",
+        "icon": "✦",
+        "description": "Machine cycles +7% per rank.",
+        "tier": 2,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "speed": 0.07
+        },
+        "requires": [
+          "engineer_t1_c1"
+        ]
+      },
+      {
+        "id": "engineer_t2_c2",
+        "name": "Turbine Systems",
+        "icon": "◇",
+        "description": "Generated power +8% per rank.",
+        "tier": 2,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "powerGeneration": 0.08
+        },
+        "requires": [
+          "engineer_t1_c2"
+        ]
+      },
+      {
+        "id": "engineer_t2_c3",
+        "name": "Scrap Recovery",
+        "icon": "◆",
+        "description": "Material consumption -5% per rank.",
+        "tier": 2,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "inputSavings": 0.05
+        },
+        "requires": [
+          "engineer_t1_c3"
+        ]
+      },
+      {
+        "id": "engineer_t3_c1",
+        "name": "Production Quality",
+        "icon": "✦",
+        "description": "Finished-goods yield +7% per rank.",
+        "tier": 3,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "output": 0.07
+        },
+        "requires": [
+          "engineer_t2_c1"
+        ]
+      },
+      {
+        "id": "engineer_t3_c2",
+        "name": "Solar Optimization",
+        "icon": "◇",
+        "description": "Solar output +12% per rank.",
+        "tier": 3,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "solarPower": 0.12
+        },
+        "requires": [
+          "engineer_t2_c2"
+        ]
+      },
+      {
+        "id": "engineer_t3_c3",
+        "name": "Advanced Buffers",
+        "icon": "◆",
+        "description": "Machine storage +10% per rank.",
+        "tier": 3,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "storage": 0.1
+        },
+        "requires": [
+          "engineer_t2_c3"
+        ]
+      },
+      {
+        "id": "engineer_t4_c1",
+        "name": "Microfabrication",
+        "icon": "✦",
+        "description": "Machine speed +8% per rank.",
+        "tier": 4,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "speed": 0.08
+        },
+        "requires": [
+          "engineer_t3_c1"
+        ]
+      },
+      {
+        "id": "engineer_t4_c2",
+        "name": "Low-Loss Grid",
+        "icon": "◇",
+        "description": "Electricity required -7% per rank.",
+        "tier": 4,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "powerSavings": 0.07
+        },
+        "requires": [
+          "engineer_t3_c2"
+        ]
+      },
+      {
+        "id": "engineer_t4_c3",
+        "name": "Rapid Dispatch",
+        "icon": "◆",
+        "description": "Material link throughput +10% per rank.",
+        "tier": 4,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "routing": 0.1
+        },
+        "requires": [
+          "engineer_t3_c3"
+        ]
+      },
+      {
+        "id": "engineer_t5_c1",
+        "name": "Robotic Tooling",
+        "icon": "✦",
+        "description": "Machine output +9% per rank.",
+        "tier": 5,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "output": 0.09
+        },
+        "requires": [
+          "engineer_t4_c1"
+        ]
+      },
+      {
+        "id": "engineer_t5_c2",
+        "name": "Heliostat Arrays",
+        "icon": "◇",
+        "description": "Solar output +15% per rank.",
+        "tier": 5,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "solarPower": 0.15
+        },
+        "requires": [
+          "engineer_t4_c2"
+        ]
+      },
+      {
+        "id": "engineer_t5_c3",
+        "name": "Materials Engineering",
+        "icon": "◆",
+        "description": "Input consumption -7% per rank.",
+        "tier": 5,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "inputSavings": 0.07
+        },
+        "requires": [
+          "engineer_t4_c3"
+        ]
+      },
+      {
+        "id": "engineer_t6_c1",
+        "name": "Advanced Toolchains",
+        "icon": "✦",
+        "description": "Machine speed +10% per rank.",
+        "tier": 6,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "speed": 0.1
+        },
+        "requires": [
+          "engineer_t5_c1"
+        ]
+      },
+      {
+        "id": "engineer_t6_c2",
+        "name": "Industrial Batteries",
+        "icon": "◇",
+        "description": "Generated power +12% per rank.",
+        "tier": 6,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "powerGeneration": 0.12
+        },
+        "requires": [
+          "engineer_t5_c2"
+        ]
+      },
+      {
+        "id": "engineer_t6_c3",
+        "name": "Optimized Warehousing",
+        "icon": "◆",
+        "description": "Warehouse capacity +15% per rank.",
+        "tier": 6,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "warehouseCapacity": 0.15
+        },
+        "requires": [
+          "engineer_t5_c3"
+        ]
+      },
+      {
+        "id": "engineer_t7_c1",
+        "name": "Fusion Foundry License",
+        "icon": "✦",
+        "description": "Unlock the Fusion Foundry, a high-output metal producer.",
+        "tier": 7,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "unlockFusion": 1
+        },
+        "requires": [
+          "engineer_t6_c1"
+        ]
+      },
+      {
+        "id": "engineer_t7_c2",
+        "name": "Grid Synchronization",
+        "icon": "◇",
+        "description": "Solar output +18% per rank.",
+        "tier": 7,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "solarPower": 0.18
+        },
+        "requires": [
+          "engineer_t6_c2"
+        ]
+      },
+      {
+        "id": "engineer_t7_c3",
+        "name": "Factory Expansion",
+        "icon": "◆",
+        "description": "Factory capacity +3 slots per rank.",
+        "tier": 7,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "slots": 3
+        },
+        "requires": [
+          "engineer_t6_c3"
+        ]
+      },
+      {
+        "id": "engineer_t8_c1",
+        "name": "Hyperproduction",
+        "icon": "✦",
+        "description": "Machine output +12% per rank.",
+        "tier": 8,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "output": 0.12
+        },
+        "requires": [
+          "engineer_t7_c1"
+        ]
+      },
+      {
+        "id": "engineer_t8_c2",
+        "name": "Photovoltaic Mastery",
+        "icon": "◇",
+        "description": "Solar generation +20% per rank.",
+        "tier": 8,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "solarPower": 0.2
+        },
+        "requires": [
+          "engineer_t7_c2"
+        ]
+      },
+      {
+        "id": "engineer_t8_c3",
+        "name": "Recycled Alloys",
+        "icon": "◆",
+        "description": "Input consumption -8% per rank.",
+        "tier": 8,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "inputSavings": 0.08
+        },
+        "requires": [
+          "engineer_t7_c3"
+        ]
+      },
+      {
+        "id": "engineer_t9_c1",
+        "name": "Autonomous Fabrication",
+        "icon": "✦",
+        "description": "Machine cycle speed +14% per rank.",
+        "tier": 9,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "speed": 0.14
+        },
+        "requires": [
+          "engineer_t8_c1"
+        ]
+      },
+      {
+        "id": "engineer_t9_c2",
+        "name": "Zero-Waste Power",
+        "icon": "◇",
+        "description": "Generated electricity +15% per rank.",
+        "tier": 9,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "powerGeneration": 0.15
+        },
+        "requires": [
+          "engineer_t8_c2"
+        ]
+      },
+      {
+        "id": "engineer_t9_c3",
+        "name": "Megafactory Planning",
+        "icon": "◆",
+        "description": "Factory capacity +5 slots per rank.",
+        "tier": 9,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "slots": 5
+        },
+        "requires": [
+          "engineer_t8_c3"
+        ]
+      },
+      {
+        "id": "engineer_capstone",
+        "name": "Industrial Titan",
+        "icon": "✸",
+        "description": "Unlock an Advanced Foundry protocol: +25% output, +12 power generation and +8 industrial slots.",
+        "tier": 10,
+        "col": 2,
+        "max": 1,
+        "effects": {
+          "output": 0.25,
+          "powerGeneration": 0.12,
+          "slots": 8
+        },
+        "requires": [
+          "engineer_t9_c2"
+        ],
+        "capstone": true
+      }
+    ]
+  },
+  "scientist": {
+    "name": "Scientific Research",
+    "icon": "⚗",
+    "color": "#c99cf4",
+    "description": "Scientific experimentation, faster laboratories, research choices, and frontier machinery.",
+    "nodes": [
+      {
+        "id": "scientist_t1_c1",
+        "name": "Lab Equipment",
+        "icon": "✦",
+        "description": "Research Data +8% per rank.",
+        "tier": 1,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "labOutput": 0.08
+        },
+        "requires": []
+      },
+      {
+        "id": "scientist_t1_c2",
+        "name": "Grant Funding",
+        "icon": "◇",
+        "description": "Research costs -5% per rank.",
+        "tier": 1,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "researchDiscount": 0.05
+        },
+        "requires": []
+      },
+      {
+        "id": "scientist_t1_c3",
+        "name": "Scientific Method",
+        "icon": "◆",
+        "description": "Research licensing payouts +8% per rank.",
+        "tier": 1,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "licenseYield": 0.08
+        },
+        "requires": []
+      },
+      {
+        "id": "scientist_t2_c1",
+        "name": "Process Experiments",
+        "icon": "✦",
+        "description": "Laboratory output +10% per rank.",
+        "tier": 2,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "labOutput": 0.1
+        },
+        "requires": [
+          "scientist_t1_c1"
+        ]
+      },
+      {
+        "id": "scientist_t2_c2",
+        "name": "Cheap Prototypes",
+        "icon": "◇",
+        "description": "Research costs -5% per rank.",
+        "tier": 2,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "researchDiscount": 0.05
+        },
+        "requires": [
+          "scientist_t1_c2"
+        ]
+      },
+      {
+        "id": "scientist_t2_c3",
+        "name": "Open Publications",
+        "icon": "◆",
+        "description": "Research licensing income +10% per rank.",
+        "tier": 2,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "licenseYield": 0.1
+        },
+        "requires": [
+          "scientist_t1_c3"
+        ]
+      },
+      {
+        "id": "scientist_t3_c1",
+        "name": "Data Processing",
+        "icon": "✦",
+        "description": "Research Data +12% per rank.",
+        "tier": 3,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "labOutput": 0.12
+        },
+        "requires": [
+          "scientist_t2_c1"
+        ]
+      },
+      {
+        "id": "scientist_t3_c2",
+        "name": "Collaborative Science",
+        "icon": "◇",
+        "description": "Research costs -6% per rank.",
+        "tier": 3,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "researchDiscount": 0.06
+        },
+        "requires": [
+          "scientist_t2_c2"
+        ]
+      },
+      {
+        "id": "scientist_t3_c3",
+        "name": "Innovation Support",
+        "icon": "◆",
+        "description": "Laboratory processing speed +6% per rank.",
+        "tier": 3,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "speed": 0.06
+        },
+        "requires": [
+          "scientist_t2_c3"
+        ]
+      },
+      {
+        "id": "scientist_t4_c1",
+        "name": "Laboratory Automation",
+        "icon": "✦",
+        "description": "Research Data +12% per rank.",
+        "tier": 4,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "labOutput": 0.12
+        },
+        "requires": [
+          "scientist_t3_c1"
+        ]
+      },
+      {
+        "id": "scientist_t4_c2",
+        "name": "Research Partnerships",
+        "icon": "◇",
+        "description": "Research costs -7% per rank.",
+        "tier": 4,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "researchDiscount": 0.07
+        },
+        "requires": [
+          "scientist_t3_c2"
+        ]
+      },
+      {
+        "id": "scientist_t4_c3",
+        "name": "Experiment Design",
+        "icon": "◆",
+        "description": "Research licensing payout +12% per rank.",
+        "tier": 4,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "licenseYield": 0.12
+        },
+        "requires": [
+          "scientist_t3_c3"
+        ]
+      },
+      {
+        "id": "scientist_t5_c1",
+        "name": "Applied Materials",
+        "icon": "✦",
+        "description": "Production output +5% per rank.",
+        "tier": 5,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "output": 0.05
+        },
+        "requires": [
+          "scientist_t4_c1"
+        ]
+      },
+      {
+        "id": "scientist_t5_c2",
+        "name": "Theoretical Advances",
+        "icon": "◇",
+        "description": "Research costs -8% per rank.",
+        "tier": 5,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "researchDiscount": 0.08
+        },
+        "requires": [
+          "scientist_t4_c2"
+        ]
+      },
+      {
+        "id": "scientist_t5_c3",
+        "name": "Device Diagnostics",
+        "icon": "◆",
+        "description": "Laboratory output +14% per rank.",
+        "tier": 5,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "labOutput": 0.14
+        },
+        "requires": [
+          "scientist_t4_c3"
+        ]
+      },
+      {
+        "id": "scientist_t6_c1",
+        "name": "Precision Spectroscopy",
+        "icon": "✦",
+        "description": "Research Data +15% per rank.",
+        "tier": 6,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "labOutput": 0.15
+        },
+        "requires": [
+          "scientist_t5_c1"
+        ]
+      },
+      {
+        "id": "scientist_t6_c2",
+        "name": "Scientific Networking",
+        "icon": "◇",
+        "description": "Research costs -8% per rank.",
+        "tier": 6,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "researchDiscount": 0.08
+        },
+        "requires": [
+          "scientist_t5_c2"
+        ]
+      },
+      {
+        "id": "scientist_t6_c3",
+        "name": "Intellectual Property",
+        "icon": "◆",
+        "description": "Licensing income +14% per rank.",
+        "tier": 6,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "licenseYield": 0.14
+        },
+        "requires": [
+          "scientist_t5_c3"
+        ]
+      },
+      {
+        "id": "scientist_t7_c1",
+        "name": "Quantum Lab License",
+        "icon": "✦",
+        "description": "Unlock the Quantum Research Lab facility.",
+        "tier": 7,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "unlockQuantumLab": 1
+        },
+        "requires": [
+          "scientist_t6_c1"
+        ]
+      },
+      {
+        "id": "scientist_t7_c2",
+        "name": "Cross-Discipline Studies",
+        "icon": "◇",
+        "description": "Research costs -10% per rank.",
+        "tier": 7,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "researchDiscount": 0.1
+        },
+        "requires": [
+          "scientist_t6_c2"
+        ]
+      },
+      {
+        "id": "scientist_t7_c3",
+        "name": "Research Logistics",
+        "icon": "◆",
+        "description": "Laboratory output +18% per rank.",
+        "tier": 7,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "labOutput": 0.18
+        },
+        "requires": [
+          "scientist_t6_c3"
+        ]
+      },
+      {
+        "id": "scientist_t8_c1",
+        "name": "High-Energy Research",
+        "icon": "✦",
+        "description": "Research Data +20% per rank.",
+        "tier": 8,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "labOutput": 0.2
+        },
+        "requires": [
+          "scientist_t7_c1"
+        ]
+      },
+      {
+        "id": "scientist_t8_c2",
+        "name": "Unified Theory",
+        "icon": "◇",
+        "description": "Break opposing research-branch restrictions when learned.",
+        "tier": 8,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "researchUnification": 1
+        },
+        "requires": [
+          "scientist_t7_c2"
+        ]
+      },
+      {
+        "id": "scientist_t8_c3",
+        "name": "Academy Network",
+        "icon": "◆",
+        "description": "Research licensing income +18% per rank.",
+        "tier": 8,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "licenseYield": 0.18
+        },
+        "requires": [
+          "scientist_t7_c3"
+        ]
+      },
+      {
+        "id": "scientist_t9_c1",
+        "name": "Frontier Sciences",
+        "icon": "✦",
+        "description": "Research Data +22% per rank.",
+        "tier": 9,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "labOutput": 0.22
+        },
+        "requires": [
+          "scientist_t8_c1"
+        ]
+      },
+      {
+        "id": "scientist_t9_c2",
+        "name": "International Grants",
+        "icon": "◇",
+        "description": "Research costs -10% per rank.",
+        "tier": 9,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "researchDiscount": 0.1
+        },
+        "requires": [
+          "scientist_t8_c2"
+        ]
+      },
+      {
+        "id": "scientist_t9_c3",
+        "name": "Industry Consortium",
+        "icon": "◆",
+        "description": "Licensing income +20% per rank.",
+        "tier": 9,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "licenseYield": 0.2
+        },
+        "requires": [
+          "scientist_t8_c3"
+        ]
+      },
+      {
+        "id": "scientist_capstone",
+        "name": "Chief Scientist",
+        "icon": "✸",
+        "description": "Unlock scientific convergence: +35% Research Data, research costs -15%, and unrestricted research branches.",
+        "tier": 10,
+        "col": 2,
+        "max": 1,
+        "effects": {
+          "labOutput": 0.35,
+          "researchDiscount": 0.15,
+          "researchUnification": 1
+        },
+        "requires": [
+          "scientist_t9_c2"
+        ],
+        "capstone": true
+      }
+    ]
+  },
+  "business": {
+    "name": "Business & Investment",
+    "icon": "◆",
+    "color": "#e7c084",
+    "description": "Timed orders, commercial margins, persistent angel rewards and market strategy.",
+    "nodes": [
+      {
+        "id": "business_t1_c1",
+        "name": "Customer Relations",
+        "icon": "✦",
+        "description": "Contract rewards +8% per rank.",
+        "tier": 1,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "contracts": 0.08
+        },
+        "requires": []
+      },
+      {
+        "id": "business_t1_c2",
+        "name": "Market Insight",
+        "icon": "◇",
+        "description": "Sale prices +6% per rank.",
+        "tier": 1,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "pricing": 0.06
+        },
+        "requires": []
+      },
+      {
+        "id": "business_t1_c3",
+        "name": "Angel Outreach",
+        "icon": "◆",
+        "description": "Angel income on company restart +6% per rank.",
+        "tier": 1,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "angelGain": 0.06
+        },
+        "requires": []
+      },
+      {
+        "id": "business_t2_c1",
+        "name": "Regional Buyers",
+        "icon": "✦",
+        "description": "Order rewards +10% per rank.",
+        "tier": 2,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "contracts": 0.1
+        },
+        "requires": [
+          "business_t1_c1"
+        ]
+      },
+      {
+        "id": "business_t2_c2",
+        "name": "Automated Trading",
+        "icon": "◇",
+        "description": "Auto-sales price +7% per rank.",
+        "tier": 2,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "autoPricing": 0.07
+        },
+        "requires": [
+          "business_t1_c2"
+        ]
+      },
+      {
+        "id": "business_t2_c3",
+        "name": "Investor Relations",
+        "icon": "◆",
+        "description": "Angel income +7% per rank.",
+        "tier": 2,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "angelGain": 0.07
+        },
+        "requires": [
+          "business_t1_c3"
+        ]
+      },
+      {
+        "id": "business_t3_c1",
+        "name": "Flexible Delivery",
+        "icon": "✦",
+        "description": "Contract deadlines +7% per rank.",
+        "tier": 3,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "contractTime": 0.07
+        },
+        "requires": [
+          "business_t2_c1"
+        ]
+      },
+      {
+        "id": "business_t3_c2",
+        "name": "Premium Markets",
+        "icon": "◇",
+        "description": "Market prices +7% per rank.",
+        "tier": 3,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "pricing": 0.07
+        },
+        "requires": [
+          "business_t2_c2"
+        ]
+      },
+      {
+        "id": "business_t3_c3",
+        "name": "Angel Syndicates",
+        "icon": "◆",
+        "description": "Angel income +8% per rank.",
+        "tier": 3,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "angelGain": 0.08
+        },
+        "requires": [
+          "business_t2_c3"
+        ]
+      },
+      {
+        "id": "business_t4_c1",
+        "name": "Expedited Sales",
+        "icon": "✦",
+        "description": "Contract reward +10% per rank.",
+        "tier": 4,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "contracts": 0.1
+        },
+        "requires": [
+          "business_t3_c1"
+        ]
+      },
+      {
+        "id": "business_t4_c2",
+        "name": "Warehousing Strategy",
+        "icon": "◇",
+        "description": "Warehouse capacity +12% per rank.",
+        "tier": 4,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "warehouseCapacity": 0.12
+        },
+        "requires": [
+          "business_t3_c2"
+        ]
+      },
+      {
+        "id": "business_t4_c3",
+        "name": "Growth Capital",
+        "icon": "◆",
+        "description": "Angel income +9% per rank.",
+        "tier": 4,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "angelGain": 0.09
+        },
+        "requires": [
+          "business_t3_c3"
+        ]
+      },
+      {
+        "id": "business_t5_c1",
+        "name": "Order Management",
+        "icon": "✦",
+        "description": "+1 simultaneous active contract per rank.",
+        "tier": 5,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "contractSlots": 1
+        },
+        "requires": [
+          "business_t4_c1"
+        ]
+      },
+      {
+        "id": "business_t5_c2",
+        "name": "Brand Management",
+        "icon": "◇",
+        "description": "Market prices +8% per rank.",
+        "tier": 5,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "pricing": 0.08
+        },
+        "requires": [
+          "business_t4_c2"
+        ]
+      },
+      {
+        "id": "business_t5_c3",
+        "name": "Investment Strategy",
+        "icon": "◆",
+        "description": "Angel income +10% per rank.",
+        "tier": 5,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "angelGain": 0.1
+        },
+        "requires": [
+          "business_t4_c3"
+        ]
+      },
+      {
+        "id": "business_t6_c1",
+        "name": "Priority Clients",
+        "icon": "✦",
+        "description": "Contract reward +12% per rank.",
+        "tier": 6,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "contracts": 0.12
+        },
+        "requires": [
+          "business_t5_c1"
+        ]
+      },
+      {
+        "id": "business_t6_c2",
+        "name": "Bulk Trade",
+        "icon": "◇",
+        "description": "Auto-sale price +9% per rank.",
+        "tier": 6,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "autoPricing": 0.09
+        },
+        "requires": [
+          "business_t5_c2"
+        ]
+      },
+      {
+        "id": "business_t6_c3",
+        "name": "Financial Planning",
+        "icon": "◆",
+        "description": "Angels +11% per rank.",
+        "tier": 6,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "angelGain": 0.11
+        },
+        "requires": [
+          "business_t5_c3"
+        ]
+      },
+      {
+        "id": "business_t7_c1",
+        "name": "Global Logistics",
+        "icon": "✦",
+        "description": "Contracts arrive 8 seconds sooner per rank.",
+        "tier": 7,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "contractFrequency": 8
+        },
+        "requires": [
+          "business_t6_c1"
+        ]
+      },
+      {
+        "id": "business_t7_c2",
+        "name": "Premium Partnerships",
+        "icon": "◇",
+        "description": "Contract rewards +14% per rank.",
+        "tier": 7,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "contracts": 0.14
+        },
+        "requires": [
+          "business_t6_c2"
+        ]
+      },
+      {
+        "id": "business_t7_c3",
+        "name": "Angel Accelerator",
+        "icon": "◆",
+        "description": "Angel income +12% per rank.",
+        "tier": 7,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "angelGain": 0.12
+        },
+        "requires": [
+          "business_t6_c3"
+        ]
+      },
+      {
+        "id": "business_t8_c1",
+        "name": "Reliable Supply",
+        "icon": "✦",
+        "description": "Contract deadlines +10% per rank.",
+        "tier": 8,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "contractTime": 0.1
+        },
+        "requires": [
+          "business_t7_c1"
+        ]
+      },
+      {
+        "id": "business_t8_c2",
+        "name": "International Demand",
+        "icon": "◇",
+        "description": "Sale prices +10% per rank.",
+        "tier": 8,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "pricing": 0.1
+        },
+        "requires": [
+          "business_t7_c2"
+        ]
+      },
+      {
+        "id": "business_t8_c3",
+        "name": "Investor Consortium",
+        "icon": "◆",
+        "description": "Angel income +15% per rank.",
+        "tier": 8,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "angelGain": 0.15
+        },
+        "requires": [
+          "business_t7_c3"
+        ]
+      },
+      {
+        "id": "business_t9_c1",
+        "name": "Corporate Prestige",
+        "icon": "✦",
+        "description": "Contract rewards +18% per rank.",
+        "tier": 9,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "contracts": 0.18
+        },
+        "requires": [
+          "business_t8_c1"
+        ]
+      },
+      {
+        "id": "business_t9_c2",
+        "name": "Global Markets",
+        "icon": "◇",
+        "description": "Auto-sale prices +12% per rank.",
+        "tier": 9,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "autoPricing": 0.12
+        },
+        "requires": [
+          "business_t8_c2"
+        ]
+      },
+      {
+        "id": "business_t9_c3",
+        "name": "Empire Funding",
+        "icon": "◆",
+        "description": "Angel income +18% per rank.",
+        "tier": 9,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "angelGain": 0.18
+        },
+        "requires": [
+          "business_t8_c3"
+        ]
+      },
+      {
+        "id": "business_capstone",
+        "name": "Industrial Magnate",
+        "icon": "✸",
+        "description": "Establish a global holding company: +50% Angels, +25% order bonuses and +1 active contract slot.",
+        "tier": 10,
+        "col": 2,
+        "max": 1,
+        "effects": {
+          "angelGain": 0.5,
+          "contracts": 0.25,
+          "contractSlots": 1
+        },
+        "requires": [
+          "business_t9_c2"
+        ],
+        "capstone": true
+      }
+    ]
+  }
 }

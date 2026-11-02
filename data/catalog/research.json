@@ -1,8 +1,259 @@
 {
-  "logistics":{"name":"Logistics Algorithms","cost":8,"description":"Link transfer capacity +50%.","requires":[]},
-  "yield":{"name":"Refined Processes","cost":20,"description":"All production output +25%.","requires":["logistics"]},
-  "market":{"name":"Predictive Markets","cost":25,"description":"Market revenue +20%.","requires":[]},
-  "energy":{"name":"Efficient Motors","cost":35,"description":"All machine power demand −20%.","requires":["yield"]},
-  "robotics":{"name":"Industrial Robotics","cost":75,"description":"Production speed +50%.","requires":["energy"]},
-  "offline":{"name":"Autonomous Operations","cost":45,"description":"Offline efficiency 100% instead of 50%.","requires":["logistics"]}
+  "logistics": {
+    "id": "logistics",
+    "name": "Logistics Algorithms",
+    "cost": 12,
+    "tier": 1,
+    "col": 1,
+    "description": "Material link throughput +50%.",
+    "effects": {
+      "routing": 0.5
+    },
+    "requires": []
+  },
+  "market": {
+    "id": "market",
+    "name": "Predictive Markets",
+    "cost": 18,
+    "tier": 1,
+    "col": 2,
+    "description": "Market sales earn 20% more credits.",
+    "effects": {
+      "pricing": 0.2
+    },
+    "requires": []
+  },
+  "energy": {
+    "id": "energy",
+    "name": "Efficient Motors",
+    "cost": 24,
+    "tier": 1,
+    "col": 3,
+    "description": "Machines draw 20% less power.",
+    "effects": {
+      "powerSavings": 0.2
+    },
+    "requires": []
+  },
+  "yield": {
+    "id": "yield",
+    "name": "Refined Processes",
+    "cost": 45,
+    "tier": 2,
+    "col": 1,
+    "description": "All production output +25%.",
+    "effects": {
+      "output": 0.25
+    },
+    "requires": [
+      "logistics"
+    ]
+  },
+  "supply_ai": {
+    "id": "supply_ai",
+    "name": "Supply Forecasting",
+    "cost": 65,
+    "tier": 2,
+    "col": 2,
+    "description": "Material link throughput +20%.",
+    "effects": {
+      "routing": 0.2
+    },
+    "requires": [
+      "logistics",
+      "market"
+    ]
+  },
+  "solar_cells": {
+    "id": "solar_cells",
+    "name": "High-Efficiency Photovoltaics",
+    "cost": 90,
+    "tier": 2,
+    "col": 3,
+    "description": "Solar Array generation +50%.",
+    "effects": {
+      "solarPower": 0.5
+    },
+    "requires": [
+      "energy"
+    ]
+  },
+  "robotics": {
+    "id": "robotics",
+    "name": "Industrial Robotics",
+    "cost": 150,
+    "tier": 3,
+    "col": 1,
+    "description": "All machine cycles operate 50% faster. Exclusive with Autonomous Operations until advanced scientific unification.",
+    "effects": {
+      "speed": 0.5
+    },
+    "requires": [
+      "yield"
+    ],
+    "choice": "automation-track"
+  },
+  "offline": {
+    "id": "offline",
+    "name": "Autonomous Operations",
+    "cost": 205,
+    "tier": 3,
+    "col": 2,
+    "description": "Offline production runs at 100% efficiency. Exclusive with Industrial Robotics until advanced scientific unification.",
+    "effects": {
+      "offlinePower": 0.5
+    },
+    "requires": [
+      "supply_ai"
+    ],
+    "choice": "automation-track"
+  },
+  "contract_network": {
+    "id": "contract_network",
+    "name": "Regional Commerce Network",
+    "cost": 275,
+    "tier": 3,
+    "col": 3,
+    "description": "Contract rewards +15%.",
+    "effects": {
+      "contracts": 0.15
+    },
+    "requires": [
+      "market",
+      "solar_cells"
+    ]
+  },
+  "superconductors": {
+    "id": "superconductors",
+    "name": "Superconducting Motors",
+    "cost": 430,
+    "tier": 4,
+    "col": 1,
+    "description": "Machines consume another 12% less power.",
+    "effects": {
+      "powerSavings": 0.12
+    },
+    "requires": [
+      "solar_cells",
+      "robotics"
+    ]
+  },
+  "synthesis": {
+    "id": "synthesis",
+    "name": "Advanced Material Synthesis",
+    "cost": 610,
+    "tier": 4,
+    "col": 2,
+    "description": "All production output +12%.",
+    "effects": {
+      "output": 0.12
+    },
+    "requires": [
+      "robotics"
+    ]
+  },
+  "analytics": {
+    "id": "analytics",
+    "name": "Market Intelligence",
+    "cost": 850,
+    "tier": 4,
+    "col": 3,
+    "description": "Market sale prices +12%.",
+    "effects": {
+      "pricing": 0.12
+    },
+    "requires": [
+      "contract_network"
+    ]
+  },
+  "quantum": {
+    "id": "quantum",
+    "name": "Quantum Logistics",
+    "cost": 1400,
+    "tier": 5,
+    "col": 1,
+    "description": "Link throughput +40%.",
+    "effects": {
+      "routing": 0.4
+    },
+    "requires": [
+      "superconductors",
+      "synthesis"
+    ]
+  },
+  "machine_learning": {
+    "id": "machine_learning",
+    "name": "Adaptive Industry AI",
+    "cost": 2200,
+    "tier": 5,
+    "col": 2,
+    "description": "Machine cycles +20% and Research Data +15%.",
+    "effects": {
+      "speed": 0.2,
+      "labOutput": 0.15
+    },
+    "requires": [
+      "synthesis",
+      "analytics"
+    ]
+  },
+  "research_acceleration": {
+    "id": "research_acceleration",
+    "name": "Research Automation",
+    "cost": 3100,
+    "tier": 5,
+    "col": 3,
+    "description": "Research Labs produce 30% more data.",
+    "effects": {
+      "labOutput": 0.3
+    },
+    "requires": [
+      "offline",
+      "analytics"
+    ]
+  },
+  "global_grid": {
+    "id": "global_grid",
+    "name": "Helios Solar Network",
+    "cost": 5200,
+    "tier": 6,
+    "col": 1,
+    "description": "Solar Array power +60%.",
+    "effects": {
+      "solarPower": 0.6
+    },
+    "requires": [
+      "quantum"
+    ]
+  },
+  "factory_scale": {
+    "id": "factory_scale",
+    "name": "Modular Megafactory",
+    "cost": 7800,
+    "tier": 6,
+    "col": 2,
+    "description": "Factory gains +4 industrial slots.",
+    "effects": {
+      "slots": 4
+    },
+    "requires": [
+      "machine_learning"
+    ]
+  },
+  "frontier": {
+    "id": "frontier",
+    "name": "Frontier Laboratories",
+    "cost": 12000,
+    "tier": 6,
+    "col": 3,
+    "description": "Research Labs produce 40% more data and licensing pays 20% more. Opens opposing research-branch choices.",
+    "effects": {
+      "labOutput": 0.4,
+      "licenseYield": 0.2,
+      "researchUnification": 1
+    },
+    "requires": [
+      "research_acceleration"
+    ]
+  }
 }

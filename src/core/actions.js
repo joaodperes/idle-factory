@@ -1,6 +1,8 @@
-import {defaultState,makeNode} from './state.js';
-import {addFacility,removeFacility,addEdge,upgradeCost,usedSlots,totalSlots,nodeCost} from './graph.js';
-import {prestigeGain,availableTalentPoints} from './engine.js';
+import {defaultState,operatingGraph} from './state.js';
+import {addFacility,removeFacility,addEdge,upgradeCost,usedSlots,totalSlots,nodeCost,normalizePowerEdges} from './graph.js';
+import {prestigeGain,earn} from './engine.js';
+import {researchStatus,researchLicensingCost,researchLicensingReward,effectiveResearchCost} from './research.js';
+import {talentStatus,findTalent,talentModifier,refundTalents,currentCareer,completedCareers} from './talents.js';
 export {addFacility,removeFacility,addEdge};
 export function upgradeFacility(state,catalog,id){
   const node=state.nodes.find(n=>n.id===id);if(!node)return 'Facility not found';
@@ -10,16 +12,40 @@ export function upgradeFacility(state,catalog,id){
 }
 export function buyResearch(state,catalog,id){
   const research=catalog.research[id];if(!research||state.research[id])return 'Already researched or unavailable';
-  if(research.requires.some(req=>!state.research[req]))return 'Missing prerequisite';
-  if(state.data<research.cost)return 'Insufficient research data';
-  state.data-=research.cost;state.research[id]=true;return null;
+  const status=researchStatus(state,catalog,id);
+  if(!status.ready)return status.reason;
+  state.data-=effectiveResearchCost(state,research);state.research[id]=true;return null;
+}
+/** Ongoing R&D remains productive after completing the one-time technology tree. */
+export function publishResearch(state,catalog){
+  const earned=Object.values(state.research||{}).filter(Boolean).length;
+  if(earned<6)return 'Unlock six technologies to start licensing applied research';
+  const cost=researchLicensingCost(state),reward=researchLicensingReward(state);
+  if(state.data+1e-7<cost)return 'Need '+Math.ceil(cost-state.data)+' more Research Data';
+  state.data-=cost;
+  earn(state,reward,Math.round(0.3*reward));
+  state.researchLicenses=(state.researchLicenses||0)+1;
+  return null;
 }
 export function buyTalent(state,catalog,id){
-  const entry=catalog.talents[state.specialization].talents.find(t=>t.id===id);
-  if(!entry)return 'Not available in this specialization';
-  if((state.talents[id]||0)>=entry.max)return 'Talent is maxed';
-  if(availableTalentPoints(state)<1)return 'Earn management XP to unlock more talent points';
-  state.talents[id]=(state.talents[id]||0)+1;return null;
+  const status=talentStatus(state,catalog,id);
+  if(!status.enabled)return status.reason;
+  const entry=findTalent(catalog,id);
+  if(!entry)return 'Talent not found';
+  if(!currentCareer(state,catalog))state.careerTree=entry.treeId;
+  state.talents[id]=(state.talents[id]||0)+1;
+  if(entry.node.capstone){
+    state.completedCareers=[...new Set([...(state.completedCareers||[]),entry.treeId])];
+    state.careerTree=null;
+  }
+  return null;
+}
+/** Free respec keeps players experimenting with different factory builds. */
+export function respecTalents(state,catalog){
+  if(catalog&&currentCareer(state,catalog))return 'Finish your current career capstone before resetting the talent tree';
+  refundTalents(state);
+  // Auto-selling is available for every sellable resource, even after respec.
+  return null;
 }
 export function buyInvestment(state,catalog,id){
   const investment=catalog.investments[id];if(!investment)return 'Investment not found';
@@ -34,12 +60,18 @@ export function resetCompany(state){
   const next=defaultState();
   next.angels=state.angels+earned;next.totalAngels=state.totalAngels+earned;
   next.investments={...state.investments};next.talents={...state.talents};
-  next.specialization=state.specialization;next.xp=state.xp;
+  next.careerTree=state.careerTree||null;next.completedCareers=[...(state.completedCareers||[])];
+  next.specialization=null;next.xp=state.xp;
   next.lifetimeRevenue=state.lifetimeRevenue;next.contractsFilled=state.contractsFilled;
+  next.dailyContracts={...state.dailyContracts};
   next.elapsed=state.elapsed;next.layouts=state.layouts;
   next.stats={...state.stats,resets:state.stats.resets+1};
-  next.onboarding=true;
-  next.credits+=300*(state.investments.capital||0)+(state.specialization==='strategist'?200*(state.talents.seed||0):0);
+  const restored=operatingGraph();
+  next.nodes=restored.nodes;next.edges=restored.edges;next.nextId=5;next.selectedNode='n3';
+  // Prestiged players should immediately earn revenue, not repeat the first-time tutorial.
+  next.credits=250;
+  next.onboarding=true;next.tutorialStep=7;
+  next.credits+=300*(state.investments.capital||0)+talentModifier(state,'startup');
   return {state:next,earned};
 }
 export function saveLayout(state,name){
@@ -64,14 +96,15 @@ export function loadLayout(state,catalog,index){
   }
   for(const edge of layout.edges){
     if(!mapping.has(edge.from)||!mapping.has(edge.to))continue;
-    addEdge(temp,catalog,mapping.get(edge.from),mapping.get(edge.to),edge.resource);
+    const from=mapping.get(edge.from),to=mapping.get(edge.to);
+    // Reconstruct legacy power relays before converting them into direct generator links.
+    if(edge.resource==='power')temp.edges.push({id:`e${temp.nextId++}`,from,to,resource:'power'});
+    else addEdge(temp,catalog,from,to,edge.resource);
   }
+  normalizePowerEdges(temp,catalog);
   state.credits=temp.credits;state.nodes=temp.nodes;state.edges=temp.edges;
   state.nextId=temp.nextId;state.selectedNode=state.nodes[0]?.id||null;
   return null;
 }
-export function setSpecialization(state,catalog,id){
-  if(!catalog.talents[id])return 'Unknown specialization';
-  state.specialization=id;
-  return null;
-}
+/** Kept as a compatibility stub for old callers; no exclusive specialization exists. */
+export function setSpecialization(){return 'Select individual talents in the tree instead of a specialization';}
