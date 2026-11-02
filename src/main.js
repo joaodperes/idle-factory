@@ -14,6 +14,8 @@ let pending=null;
 let drag=null;
 let notifyTimer=null;
 let practiceSnapshot=null; // Replays run in a disposable practice factory; player saves are untouched.
+const CANVAS_W=2500,CANVAS_H=1650,MIN_CANVAS_ZOOM=0.35,MAX_CANVAS_ZOOM=1.75;
+let canvasZoom=1; // Canvas-only zoom, never browser/page zoom.
 const inTutorial=()=>!state.onboarding;
 const $=selector=>document.querySelector(selector);
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -70,7 +72,7 @@ function portCenter(nodeId,side,resource){
   const port=[...node.querySelectorAll('.port')].find(p=>p.dataset.port===side && (p.dataset.resource===resource||(side==='in'&&p.dataset.resource==='any'&&resource!=='power')));
   if(!port)return null;
   const rect=port.getBoundingClientRect(),origin=$('#editor-world').getBoundingClientRect();
-  return {x:rect.left+rect.width/2-origin.left,y:rect.top+rect.height/2-origin.top};
+  return {x:(rect.left+rect.width/2-origin.left)/canvasZoom,y:(rect.top+rect.height/2-origin.top)/canvasZoom};
 }
 function drawLinks(){
   const svg=$('#links');
@@ -189,7 +191,7 @@ function guideTarget(){
 function focusGuidedTarget(){
   const match=guideTarget();if(!match)return;
   const scroll=$('#editor-scroll');
-  scroll.scrollTo({left:Math.max(0,match.node.x-scroll.clientWidth*0.34),top:Math.max(0,match.node.y-100),behavior:'smooth'});
+  scroll.scrollTo({left:Math.max(0,match.node.x*canvasZoom-scroll.clientWidth*0.34),top:Math.max(0,match.node.y*canvasZoom-100),behavior:'smooth'});
 }
 function renderGuidance(){
   const active=inTutorial(),card=$('#tutorial-panel');
@@ -285,8 +287,8 @@ function handleAction(button){
     const scroll=$('#editor-scroll');
     const idx=state.nodes.length;
     const placement=inTutorial()?({smelter:{x:650,y:125},market:{x:960,y:125}}[kind]):null;
-    const x=placement?.x??Math.min(2250,Math.round(scroll.scrollLeft+200+(idx%3)*45));
-    const y=placement?.y??Math.min(1400,Math.round(scroll.scrollTop+200+(idx%5)*50));
+    const x=placement?.x??Math.min(2250,Math.round(scroll.scrollLeft/canvasZoom+200+(idx%3)*45));
+    const y=placement?.y??Math.min(1400,Math.round(scroll.scrollTop/canvasZoom+200+(idx%5)*50));
     runAction(addFacility(state,catalog,kind,x,y),'Facility commissioned');
     if(inTutorial())focusGuidedTarget();return;
   }
@@ -333,7 +335,7 @@ $('#editor-world').addEventListener('pointerdown',e=>{
 $('#editor-world').addEventListener('pointermove',e=>{
   if(!drag)return;
   const node=byId(drag.id);if(!node)return;
-  const x=drag.x+(e.clientX-drag.sx),y=drag.y+(e.clientY-drag.sy);
+  const x=drag.x+(e.clientX-drag.sx)/canvasZoom,y=drag.y+(e.clientY-drag.sy)/canvasZoom;
   moveFacility(state,node.id,x,y);
   const element=document.querySelector(`[data-node-id="${node.id}"]`);
   if(element){element.style.left=`${node.x}px`;element.style.top=`${node.y}px`;}
@@ -343,7 +345,45 @@ const stopDragging=()=>{if(drag){drag=null;saveLocal();}};
 $('#editor-world').addEventListener('pointerup',stopDragging);
 $('#editor-world').addEventListener('pointercancel',stopDragging);
 window.addEventListener('pointerup',stopDragging);
-$('#center-btn').addEventListener('click',()=>{const el=$('#editor-scroll');el.scrollTo({top:0,left:0,behavior:'smooth'});});
+/** Preserve the factory point under the cursor (or viewport center) during zoom. */
+function zoomCanvas(nextZoom,anchorX,anchorY){
+  const zoom=Math.max(MIN_CANVAS_ZOOM,Math.min(MAX_CANVAS_ZOOM,Math.round(nextZoom*100)/100));
+  if(zoom===canvasZoom)return;
+  const scroll=$('#editor-scroll');
+  const ax=anchorX??scroll.clientWidth/2, ay=anchorY??scroll.clientHeight/2;
+  const worldX=(scroll.scrollLeft+ax)/canvasZoom, worldY=(scroll.scrollTop+ay)/canvasZoom;
+  canvasZoom=zoom;
+  $('#editor-stage').style.width=`${CANVAS_W*zoom}px`;
+  $('#editor-stage').style.height=`${CANVAS_H*zoom}px`;
+  $('#editor-world').style.transform=`scale(${zoom})`;
+  scroll.scrollLeft=worldX*zoom-ax;
+  scroll.scrollTop=worldY*zoom-ay;
+  $('#zoom-value').textContent=`${Math.round(zoom*100)}%`;
+  $('#zoom-out').disabled=zoom<=MIN_CANVAS_ZOOM;
+  $('#zoom-in').disabled=zoom>=MAX_CANVAS_ZOOM;
+  drawLinks();
+}
+function fitFactory(){
+  const scroll=$('#editor-scroll');
+  if(!state.nodes.length){zoomCanvas(1);scroll.scrollTo(0,0);return;}
+  const minX=Math.max(0,Math.min(...state.nodes.map(n=>n.x))-36);
+  const minY=Math.max(0,Math.min(...state.nodes.map(n=>n.y))-36);
+  const maxX=Math.max(...state.nodes.map(n=>n.x+207))+36;
+  const maxY=Math.max(...state.nodes.map(n=>n.y+170))+36;
+  const zoom=Math.max(MIN_CANVAS_ZOOM,Math.min(1,(scroll.clientWidth-24)/(maxX-minX),(scroll.clientHeight-24)/(maxY-minY)));
+  zoomCanvas(zoom);
+  scroll.scrollTo({left:Math.max(0,(minX+maxX)*canvasZoom/2-scroll.clientWidth/2),top:Math.max(0,(minY+maxY)*canvasZoom/2-scroll.clientHeight/2)});
+}
+$('#zoom-out').addEventListener('click',()=>zoomCanvas(canvasZoom-0.1));
+$('#zoom-in').addEventListener('click',()=>zoomCanvas(canvasZoom+0.1));
+$('#zoom-fit').addEventListener('click',fitFactory);
+$('#editor-scroll').addEventListener('wheel',event=>{
+  if(!event.ctrlKey&&!event.metaKey)return; // Ordinary wheel continues to scroll the canvas.
+  event.preventDefault(); // Prevent browser zoom while the pointer is on the canvas.
+  const rect=event.currentTarget.getBoundingClientRect();
+  zoomCanvas(canvasZoom+(event.deltaY>0?-0.1:0.1),event.clientX-rect.left,event.clientY-rect.top);
+},{passive:false});
+$('#center-btn').addEventListener('click',()=>{zoomCanvas(1);$('#editor-scroll').scrollTo({top:0,left:0,behavior:'smooth'});});
 $('#layout-save').addEventListener('click',()=>{const name=prompt('Name this factory blueprint (up to 32 characters):','Efficient factory');if(name){saveLayout(state,name);runAction(null,'Blueprint archived');}});
 $('#prestige-btn').addEventListener('click',()=>{
   const gained=prestigeGain(state);if(!gained)return;
