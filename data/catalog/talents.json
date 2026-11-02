@@ -90,13 +90,14 @@
         "id": "adaptive_control",
         "name": "Adaptive Controls",
         "icon": "◈",
-        "description": "8% more production speed and 3% extra output per rank.",
+        "description": "8% more production speed, 3% extra goods and 6% faster Research Data production per rank.",
         "tier": 3,
         "col": 1,
         "max": 2,
         "effects": {
           "speed": 0.08,
-          "output": 0.03
+          "output": 0.03,
+          "labOutput": 0.06
         },
         "requires": [
           "recycling",
@@ -123,12 +124,13 @@
         "id": "grid_buffer",
         "name": "Generator Tuning",
         "icon": "⚡",
-        "description": "12% more generated electricity per rank.",
+        "description": "12% more power from all generators and an additional 12% from Solar Arrays per rank.",
         "tier": 3,
         "col": 3,
         "max": 2,
         "effects": {
-          "powerGeneration": 0.12
+          "powerGeneration": 0.12,
+          "solarPower": 0.12
         },
         "requires": [
           "heat_recovery"
@@ -265,12 +267,13 @@
         "id": "automation",
         "name": "Auto-Trading",
         "icon": "◉",
-        "description": "Automatically sell any market goods with Auto enabled.",
+        "description": "Automated trading earns 8% more credits, and Research Labs produce 10% more data.",
         "tier": 2,
         "col": 3,
         "max": 1,
         "effects": {
-          "autoTrading": 1
+          "autoPricing": 0.08,
+          "labOutput": 0.1
         },
         "requires": [
           "layout",
@@ -502,13 +505,14 @@
         "id": "corporate_training",
         "name": "Corporate Academy",
         "icon": "✦",
-        "description": "15% more management XP and +1 factory slot per rank.",
+        "description": "15% more Factory XP, +1 industrial slot and +10% Research Data per rank.",
         "tier": 3,
         "col": 3,
         "max": 2,
         "effects": {
           "xp": 0.15,
-          "slots": 1
+          "slots": 1,
+          "labOutput": 0.1
         },
         "requires": [
           "workforce"
