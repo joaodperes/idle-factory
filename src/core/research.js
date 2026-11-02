@@ -1,3 +1,4 @@
+import {talentModifier} from './talents.js';
 export const RESEARCH_EFFECTS={
   "logistics": {
     "routing": 0.5
@@ -61,9 +62,7 @@ export function researchModifier(state,key){return Object.entries(RESEARCH_EFFEC
 export function researchLicensingCost(state){return 80+25*Math.max(0,state.researchLicenses||0);}
 export function researchLicensingReward(state){return Math.round((450+100*Math.max(0,state.researchLicenses||0))*(1+researchModifier(state,'licenseYield')));}
 export function effectiveResearchCost(state,entry){
- const discount=Math.min(.75,Math.max(0,(state.researchCostBonus||0)+Object.entries(state.talents||{}).reduce((sum,[id,rank])=>{
-   return sum+(id.startsWith('scientist_t')&&(id.endsWith('_c2'))?0.05*rank:0);
- },0)));
+ const discount=Math.min(.75,Math.max(0,talentModifier(state,'researchDiscount')));
  return Math.ceil(entry.cost*(1-discount));
 }
 export function researchStatus(state,catalog,id){
@@ -72,7 +71,7 @@ export function researchStatus(state,catalog,id){
  if(state.research[id])return {ready:false,reason:'Researched'};
  const missing=(item.requires||[]).filter(req=>!state.research[req]);
  if(missing.length)return {ready:false,reason:'Requires '+missing.map(req=>catalog.research[req]?.name||req).join(' and ')};
- const advanced=Object.keys(state.talents||{}).some(tid=>tid.startsWith('scientist_')&&((tid==='scientist_t8_c2'||tid==='scientist_capstone')&&(state.talents[tid]||0)>0))||researchModifier(state,'researchUnification')>0;
+ const advanced=talentModifier(state,'researchUnification')>0||researchModifier(state,'researchUnification')>0;
  if(item.choice&&!advanced&&Object.values(catalog.research).some(other=>other.id!==id&&other.choice===item.choice&&state.research[other.id]))
    return {ready:false,reason:'Conflicts with an existing research choice. Advance the Scientist career to reunify.'};
  const cost=effectiveResearchCost(state,item);
