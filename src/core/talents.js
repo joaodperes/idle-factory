@@ -274,7 +274,7 @@ export function factoryLevel(state){
 }
 export function nextFactoryLevelXp(state){const level=factoryLevel(state);return level>=MAX_FACTORY_LEVEL?null:EXPERIENCE[level];}
 export function factoryLevelStartXp(level){return EXPERIENCE[Math.max(0,Math.min(MAX_FACTORY_LEVEL-1,level-1))];}
-export function pointsEarned(state){return Math.max(0,factoryLevel(state)-TALENT_UNLOCK_LEVEL+1);}
+export function pointsEarned(state){return Math.max(0,factoryLevel(state)-TALENT_UNLOCK_LEVEL+1)+Math.max(0,state.legacyTalentCredits||0);}
 export function talentPointsUsed(state){return Object.entries(TALENT_EFFECTS).reduce((sum,[id])=>sum+Math.max(0,state.talents?.[id]||0),0);}
 export function freeTalentPoints(state){return Math.max(0,pointsEarned(state)-talentPointsUsed(state));}
 export function talentModifier(state,key){return Object.entries(TALENT_EFFECTS).reduce((sum,[id,e])=>sum+(state.talents?.[id]||0)*(e[key]||0),0);}
