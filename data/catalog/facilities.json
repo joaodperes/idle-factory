@@ -129,7 +129,7 @@
     "name": "Warehouse",
     "icon": "▥",
     "category": "Logistics",
-    "description": "Stores up to 600 units of each material and routes goods onward. Upgrade to expand its buffer.",
+    "description": "Stores 600 per resource (more with upgrades). Releases goods to Trade Terminals only when that resource is full, at 75% normal link speed; production routes remain unrestricted. Reserves contracts first.",
     "cost": 700,
     "storage": 600,
     "slots": 2,
