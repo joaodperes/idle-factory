@@ -6,6 +6,7 @@ import {advanceTutorial,TUTORIAL_STEPS,tutorialPort} from '../src/core/tutorial.
 import {simulate,gridStatus,marketQuantity,completeContract,prestigeGain,availableTalentPoints,managerLevel} from '../src/core/engine.js';
 import {addFacility,addEdge,usedSlots,totalSlots} from '../src/core/graph.js';
 import {resetCompany,saveLayout,loadLayout,buyInvestment,buyTalent,buyResearch} from '../src/core/actions.js';
+import {tickOrders} from '../src/core/orders.js';
 const read=id=>JSON.parse(readFileSync(new URL(`../data/catalog/${id}.json`,import.meta.url),'utf8'));
 const catalog=Object.fromEntries(['facilities','resources','talents','research','investments','contracts'].map(id=>[id,read(id)]));
 function workingFactory(){
@@ -35,12 +36,29 @@ test('power networks are isolated',()=>{
  const s=workingFactory();const smelter=s.nodes.find(n=>n.kind==='smelter');s.edges=s.edges.filter(e=>e.to!==smelter.id||e.resource!=='power');
  const grid=gridStatus(s,catalog);assert.equal(grid.efficiency.get(smelter.id),0);
 });
-test('market autosell can be disabled to fulfill a contract',()=>{
- const s=workingFactory();s.autoSell.metal=false;simulate(s,catalog,160);
- assert.ok(marketQuantity(s,'metal')>=25);
- const before=s.credits,stockBefore=marketQuantity(s,'metal');assert.equal(completeContract(s,catalog,'foundations'),null);
- assert.ok(s.credits>=before+260);assert.ok(Math.abs(marketQuantity(s,'metal')-(stockBefore-25))<1e-6);
- assert.match(completeContract(s,catalog,'foundations'),/cooldown/);
+test('market autosell can be disabled to fulfill a rolling customer order',()=>{
+ const s=workingFactory();s.autoSell.metal=false;s.onboarding=true;
+ tickOrders(s,catalog,1);
+ const order=s.orders.find(o=>o.resource==='metal');
+ assert.ok(order,'Expected a live metal delivery order');
+ simulate(s,catalog,160);
+ assert.ok(marketQuantity(s,'metal')>=order.amount);
+ const before=s.credits,stockBefore=marketQuantity(s,'metal');
+ assert.equal(completeContract(s,catalog,order.id),null);
+ assert.ok(s.credits>=before+order.reward);
+ assert.ok(Math.abs(marketQuantity(s,'metal')-(stockBefore-order.amount))<1e-6);
+ assert.equal(s.orderStats.fulfilled,1);
+ assert.match(completeContract(s,catalog,order.id),/expired or is no longer available/);
+});
+test('rolling orders expire after their deadline and cannot be delivered',()=>{
+ const s=workingFactory();
+ tickOrders(s,catalog,1);
+ const order=s.orders[0];
+ assert.ok(order);
+ tickOrders(s,catalog,order.expiresAt-s.orderClock+1);
+ assert.ok(!s.orders.some(o=>o.id===order.id));
+ assert.equal(s.orderStats.expired,1);
+ assert.match(completeContract(s,catalog,order.id),/expired or is no longer available/);
 });
 test('construction spends credits and respects unlocks and capacity',()=>{
  const s=workingFactory();s.credits=10000;s.runRevenue=10000;
@@ -51,10 +69,11 @@ test('construction spends credits and respects unlocks and capacity',()=>{
  assert.match(addEdge(s,catalog,source,s.selectedNode,'metal'),/already exists/);
  assert.match(addEdge(s,catalog,'n2',s.selectedNode,'ore'),/cannot consume/);
 });
-test('talents cost level points, and research needs data',()=>{
- const s=defaultState();assert.match(buyTalent(s,catalog,'lean'),/Unlock at Factory Level 5/);
- s.xp=5000;assert.ok(managerLevel(s)>1);assert.ok(availableTalentPoints(s)>0);
- assert.equal(buyTalent(s,catalog,'lean'),null);assert.equal(s.talents.lean,1);
+test('career talents need Factory Level 5 and available points; research needs data',()=>{
+ const s=defaultState();assert.match(buyTalent(s,catalog,'engineer_t1_c1'),/Factory Level 5/);
+ s.xp=5000;assert.ok(managerLevel(s)>=5);assert.ok(availableTalentPoints(s)>0);
+ assert.equal(buyTalent(s,catalog,'engineer_t1_c1'),null);
+ assert.equal(s.talents.engineer_t1_c1,1);
  assert.match(buyResearch(s,catalog,'logistics'),/Insufficient/);
  s.data=20;assert.equal(buyResearch(s,catalog,'logistics'),null);
 });
@@ -82,10 +101,14 @@ test('safe import accepts v2 starter migration and rejects future saves',()=>{
  assert.throws(()=>sanitizeSave({version:4},catalog),/newer/);
 });
 test('injected and invalid save data cannot become active game definitions',()=>{
- const raw=defaultState();raw.nodes[0].kind='unknown';raw.credits=Infinity;raw.talents={lean:10000};raw.nodes[1].buffer={ore:-20};
+ const raw=defaultState();raw.nodes[0].kind='unknown';raw.credits=Infinity;
+ raw.talents={engineer_t1_c1:10000,lean:10000};raw.nodes[1].buffer={ore:-20};
  const s=sanitizeSave(JSON.parse(JSON.stringify(raw)),catalog);
  assert.equal(s.nodes.some(n=>n.kind==='unknown'),false);
- assert.equal(s.talents.lean,3);assert.equal(s.nodes[0].buffer.ore,0);
+ assert.equal(s.talents.engineer_t1_c1,2,'Known talent ranks must respect their cap');
+ assert.equal(s.talents.lean,undefined,'Deprecated talent IDs must not become active');
+ assert.equal(s.legacyTalentCredits,20,'Legacy talents should migrate to bounded credits');
+ assert.equal(s.nodes[0].buffer.ore,0);
  assert.equal(s.credits,900);
 });
 test('prestige gain scales with contracts and production',()=>{
