@@ -1,23 +1,13 @@
-const SUFFIXES = ['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];
-function trimStr(s){ return s.indexOf('.')>=0 ? s.replace(/0+$/,'').replace(/\.$/,'') : s; }
-export function fmt(n){
-  if(!isFinite(n)) return '∞';
-  if(n===0) return '0';
-  if(n<0) return '-'+fmt(-n);
-  if(n<0.01) return n.toExponential(1);
-  if(n<1000){
-    if(n<10) return trimStr(n.toFixed(2));
-    if(n<100) return trimStr(n.toFixed(1));
-    return Math.floor(n).toString();
-  }
-  const tier = Math.floor(Math.log10(n)/3);
-  if(tier>=SUFFIXES.length) return n.toExponential(2);
-  return trimStr((n/Math.pow(1000,tier)).toFixed(2)) + SUFFIXES[tier];
+export function fmt(value, digits = 1) {
+  if (!Number.isFinite(value)) return '—';
+  const abs = Math.abs(value);
+  const units = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi'];
+  if (abs < 1000) return value.toLocaleString('en-US', {maximumFractionDigits:abs < 10 ? 2 : digits});
+  let index = Math.min(units.length - 1, Math.floor(Math.log10(abs) / 3));
+  return `${(value / (1000 ** index)).toFixed(2).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')}${units[index]}`;
 }
-export function fmtTime(s){
-  s = Math.floor(s);
-  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
-  if(h) return `${h}h ${m}m`;
-  if(m) return `${m}m ${sec}s`;
-  return `${sec}s`;
+export function timeLabel(seconds) {
+  if (seconds >= 3600) return `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
+  if (seconds >= 60) return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
+  return `${Math.floor(seconds)}s`;
 }

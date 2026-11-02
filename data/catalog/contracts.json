@@ -1,0 +1,6 @@
+[
+  {"id":"foundations","title":"Local Construction","resource":"metal","amount":25,"reward":260,"xp":70,"description":"Supply a regional construction business."},
+  {"id":"motors","title":"Industrial Machinery","resource":"parts","amount":20,"reward":650,"xp":150,"description":"Deliver precision components to a machinery integrator."},
+  {"id":"electronics","title":"Technology Consortium","resource":"circuits","amount":14,"reward":1100,"xp":240,"description":"Support a growing electronics manufacturer."},
+  {"id":"devices","title":"Consumer Launch","resource":"devices","amount":10,"reward":2350,"xp":450,"description":"Fulfill a premium electronics rollout."}
+]

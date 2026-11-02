@@ -1,12 +1,9 @@
 {
-  "name": "factory-idle",
-  "private": true,
-  "version": "0.2.0",
-  "type": "module",
-  "description": "Static-site incremental factory management game",
-  "scripts": {
-    "test": "node --test",
-    "check": "node --check src/main.js"
-  },
-  "engines": {"node": ">=20"}
+  "name":"idle-factory",
+  "version":"1.0.0",
+  "private":true,
+  "type":"module",
+  "description":"Diagram-driven idle factory planning game for GitHub Pages",
+  "scripts":{"test":"node --test","check":"node --check src/main.js && node --check src/core/engine.js && node --check src/core/state.js && node --check src/core/actions.js && node --check src/core/graph.js"},
+  "engines":{"node":">=20"}
 }

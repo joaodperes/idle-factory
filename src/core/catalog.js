@@ -1,14 +1,9 @@
-/** Static, version-controlled game definitions. These are NOT player save files. */
-export async function loadCatalogs() {
-  const files = {
-    BUILDINGS: 'buildings.json', RESEARCH: 'research.json',
-    META: 'prestige.json', WORKER_CLASSES: 'workers.json'
-  };
-  const entries = await Promise.all(Object.entries(files).map(async ([key, file]) => {
-    const url = new URL(`../../data/catalog/${file}`, import.meta.url);
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Failed to load ${file}: HTTP ${response.status}`);
-    return [key, await response.json()];
+export async function loadCatalog() {
+  const ids = ['facilities','resources','talents','research','investments','contracts'];
+  const values = await Promise.all(ids.map(async id => {
+    const response = await fetch(new URL(`../../data/catalog/${id}.json`, import.meta.url));
+    if (!response.ok) throw new Error(`Catalog ${id} failed to load (${response.status})`);
+    return response.json();
   }));
-  return Object.fromEntries(entries);
+  return Object.fromEntries(ids.map((id, index) => [id, values[index]]));
 }
