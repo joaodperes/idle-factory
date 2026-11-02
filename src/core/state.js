@@ -1,3 +1,4 @@
+import {normalizePowerEdges} from './graph.js';
 export const SAVE_KEY = 'idle-factory-save-v3';
 const OLD_SAVE_KEY = 'factory-idle-v2';
 const asObject = v => v && typeof v === 'object' && !Array.isArray(v) ? v : {};
@@ -28,7 +29,7 @@ export function defaultState() {
     version:3, credits:900, data:0, angels:0, totalAngels:0,
     runRevenue:0, lifetimeRevenue:0, contractsFilled:0, runContracts:0,
     xp:0, elapsed:0, runElapsed:0, lastSeen:Date.now(),
-    specialization:'engineer', talents:{}, investments:{}, research:{},
+    specialization:null, talents:{}, investments:{}, research:{},
     nodes:starterGraph().nodes, edges:starterGraph().edges, nextId:3,
     autoSell:{metal:true}, contractRuns:{}, selectedNode:'n1', layouts:[],
     stats:{resets:0, clicks:0}, onboarding:false, tutorialStep:0
@@ -41,8 +42,9 @@ export function sanitizeSave(raw, catalog) {
   const s = defaultState();
   for (const k of ['credits','data','angels','totalAngels','runRevenue','lifetimeRevenue','xp','elapsed','runElapsed','lastSeen']) s[k]=number(raw[k],s[k], k==='lastSeen'?1e15:1e13);
   for (const k of ['contractsFilled','runContracts','nextId']) s[k]=integer(raw[k],s[k]);
-  s.specialization = catalog.talents[raw.specialization] ? raw.specialization : s.specialization;
-  const allowedTalents = Object.values(catalog.talents).flatMap(branch=>branch.talents);
+  // Previous specialization choices are deprecated; no tree is selected by default.
+  s.specialization=null;
+  const allowedTalents = Object.values(catalog.talents).flatMap(branch=>branch.nodes);
   for (const t of allowedTalents) s.talents[t.id] = integer(asObject(raw.talents)[t.id],0,t.max);
   for (const [id,def] of Object.entries(catalog.investments)) s.investments[id]=integer(asObject(raw.investments)[id],0,def.max);
   for (const id of Object.keys(catalog.research)) if(asObject(raw.research)[id] === true) s.research[id]=true;
@@ -65,7 +67,7 @@ export function sanitizeSave(raw, catalog) {
     if(seen.has(key))return [];
     seen.add(key);
     const from=s.nodes.find(n=>n.id===e.from),to=s.nodes.find(n=>n.id===e.to);
-    if(e.resource==='power' && ((!catalog.facilities[from.kind].power&&!catalog.facilities[from.kind].demand)||!catalog.facilities[to.kind].demand))return [];
+    if(e.resource==='power' && (!catalog.facilities[from.kind].power&&!catalog.facilities[from.kind].demand&&!catalog.facilities[to.kind].demand))return []; // Legacy relay links are normalized below.
     if(e.resource!=='power' && (catalog.facilities[from.kind].output!==e.resource || (to.kind!=='market' && !catalog.facilities[to.kind].inputs?.[e.resource])))return [];
     return [{id:text(e.id,`e${s.edges?.length||seen.size}`),from:e.from,to:e.to,resource:e.resource}];
   });
@@ -80,6 +82,7 @@ export function sanitizeSave(raw, catalog) {
     edges:(Array.isArray(layout?.edges)?layout.edges:[]).slice(0,260).map(e=>({from:text(e.from),to:text(e.to),resource:text(e.resource)}))
   }));
   s.nextId=Math.max(s.nextId,1+Math.max(0,...s.nodes.map(n=>Number(n.id.slice(1))||0)));
+  normalizePowerEdges(s,catalog);
   return s;
 }
 function migrateV2(old) {
