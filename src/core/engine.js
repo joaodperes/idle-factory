@@ -13,6 +13,8 @@ export function productionActivity(node){return recentProduction.get(node)||{pro
 /** Sales made during the most recent simulation update (not cumulative inventory). */
 export function marketActivity(node){return recentMarketSales.get(node)||{units:0,revenue:0};}
 const BASE_LINK_RATE=3;
+/** Warehouses preserve a full buffer for each material before selling; dispatch is slower than a direct route. */
+export const WAREHOUSE_TRADE_SPEED=0.75;
 const bonus=(state,key)=>talentModifier(state,key);
 const getResearch=(s,id)=>s.research[id]===true;
 export function capacity(state,node){return (node.kind==='market'?600:node.kind==='warehouse'?600:OUTPUT_LIMIT)*(1+bonus(state,'storage')+(node.kind==='warehouse'?bonus(state,'warehouseCapacity'):0))*(1+0.25*(node.level-1));}
@@ -39,7 +41,7 @@ export function sell(state,catalog,resource,amount){
   let sold=0;
   const unitPrice=price(state,catalog,resource)*(state.autoSell[resource]?(1+bonus(state,'autoPricing')):1);
   for(const node of state.nodes){
-    if(node.kind!=='market'&&node.kind!=='warehouse')continue;
+    if(node.kind!=='market')continue; // Stored warehouse goods must reach a Trade Terminal through a graph link.
     const take=Math.min(remaining,node.buffer[resource]||0);
     if(take<=0)continue;
     node.buffer[resource]-=take;remaining-=take;sold+=take;
@@ -87,7 +89,7 @@ export function gridStatus(state,catalog){
   return {efficiency,supply,demand,groups};
 }
 export function contractAvailable(state,order){return !!order&&state.orders?.some(o=>o.id===order.id&&o.expiresAt>=(state.orderClock||0));}
-export function marketQuantity(state,resource){return availableStock(state,resource);}
+export function marketQuantity(state,resource){return state.nodes.filter(n=>n.kind==='market').reduce((sum,n)=>sum+(n.buffer[resource]||0),0);}
 export function completeContract(state,catalog,id){return fulfillOrder(state,catalog,id,earn);}
 function produceOneSecond(state,catalog,dt,offlineFactor){
   const defs=catalog.facilities, {efficiency}=gridStatus(state,catalog);
@@ -95,13 +97,20 @@ function produceOneSecond(state,catalog,dt,offlineFactor){
   // Pre-existing warehouse inventory must be committed before downstream routes draw from it.
   reserveStoredStock(state);
   const lookup=new Map(state.nodes.map(n=>[n.id,n]));
-  for(const edge of state.edges){
-    if(edge.resource==='power')continue;
+  // Deliver incoming goods before warehouse-to-terminal dispatch, independent of edge creation order.
+  const warehouseTrade=edge=>lookup.get(edge.from)?.kind==='warehouse'&&lookup.get(edge.to)?.kind==='market';
+  const routes=state.edges.filter(edge=>edge.resource!=='power')
+    .sort((a,b)=>Number(warehouseTrade(a))-Number(warehouseTrade(b)));
+  for(const edge of routes){
     const from=lookup.get(edge.from),to=lookup.get(edge.to);
     if(!from||!to||!from.enabled||!to.enabled)continue;
     const available=from.buffer[edge.resource]||0;
     const free=Math.max(0,capacity(state,to)-(to.buffer[edge.resource]||0));
-    const qty=Math.min(available,free,rate);
+    const overflowRoute=warehouseTrade(edge);
+    // Warehouse -> Trade Terminal: release only at a FULL buffer for this resource.
+    // Contract allocations have already been removed from the warehouse buffer.
+    if(overflowRoute&&available+1e-7<capacity(state,from))continue;
+    const qty=Math.min(available,free,rate*(overflowRoute?WAREHOUSE_TRADE_SPEED:1));
     if(qty>0){
       from.buffer[edge.resource]=available-qty;to.buffer[edge.resource]=(to.buffer[edge.resource]||0)+qty;
       // Commit goods immediately on arrival, before later graph edges can consume them.
