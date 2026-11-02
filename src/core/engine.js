@@ -11,6 +11,12 @@ const BRANCH={lean:'engineer',precision:'engineer',grid:'engineer',routing:'arch
 const getTalent=(s,id)=>BRANCH[id]===s.specialization?(s.talents[id]||0):0;
 const getResearch=(s,id)=>s.research[id]===true;
 export function capacity(state,node){return (node.kind==='market'?600:OUTPUT_LIMIT)*(1+0.5*getTalent(state,'storage'));}
+/** Maximum output when powered and supplied; compare with measured productionActivity(). */
+export function maxProductionRate(state,node,catalog){
+  const def=catalog.facilities[node.kind];if(!def?.output)return 0;
+  const speed=(1+0.4*(node.level-1)+0.15*getTalent(state,'precision'))*(getResearch(state,'robotics')?1.5:1);
+  return def.rate*speed*(1+0.1*(state.investments.engineering||0))*(getResearch(state,'yield')?1.25:1);
+}
 export function linkRate(state){return BASE_LINK_RATE*(1+0.4*getTalent(state,'routing')+0.2*(state.investments.patents||0))*(getResearch(state,'logistics')?1.5:1);}
 export function priceMultiplier(state,resource){
   const order=['ore','metal','parts','circuits','devices'];
