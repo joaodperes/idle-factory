@@ -31,7 +31,7 @@ export function defaultState() {
     xp:0, elapsed:0, runElapsed:0, lastSeen:Date.now(),
     specialization:null, talents:{}, investments:{}, research:{},
     nodes:starterGraph().nodes, edges:starterGraph().edges, nextId:3,
-    autoSell:{metal:true}, contractRuns:{}, selectedNode:'n1', layouts:[],
+    autoSell:{metal:true}, contractRuns:{}, dailyContracts:{}, researchLicenses:0, selectedNode:'n1', layouts:[],
     stats:{resets:0, clicks:0}, onboarding:false, tutorialStep:0
   };
 }
@@ -46,6 +46,10 @@ export function sanitizeSave(raw, catalog) {
   s.specialization=null;
   const allowedTalents = Object.values(catalog.talents).flatMap(branch=>branch.nodes);
   for (const t of allowedTalents) s.talents[t.id] = integer(asObject(raw.talents)[t.id],0,t.max);
+  s.researchLicenses=integer(raw.researchLicenses,0,100000);
+  const rawDaily=asObject(raw.dailyContracts);
+  s.dailyContracts={};
+  for(const def of catalog.contracts){const date=rawDaily[def.id];if(typeof date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(date))s.dailyContracts[def.id]=date;}
   for (const [id,def] of Object.entries(catalog.investments)) s.investments[id]=integer(asObject(raw.investments)[id],0,def.max);
   for (const id of Object.keys(catalog.research)) if(asObject(raw.research)[id] === true) s.research[id]=true;
   s.autoSell={}; for(const id of Object.keys(catalog.resources)) if(asObject(raw.autoSell)[id]===true)s.autoSell[id]=true;
