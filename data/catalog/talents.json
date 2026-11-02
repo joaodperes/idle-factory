@@ -1,5 +1,572 @@
 {
-  "engineer":{"name":"Industrial Engineer","icon":"⚙","description":"Better production efficiency and grid reliability.","talents":[{"id":"lean","name":"Lean Manufacturing","description":"10% less material consumption per rank.","max":3},{"id":"precision","name":"Process Optimization","description":"15% faster production per rank.","max":3},{"id":"grid","name":"Grid Engineering","description":"15% less power demand per rank.","max":3}]},
-  "architect":{"name":"Automation Architect","icon":"⌘","description":"Move goods faster and orchestrate complex factories.","talents":[{"id":"routing","name":"High-speed Routing","description":"40% more link throughput per rank.","max":3},{"id":"storage","name":"Smart Warehousing","description":"50% more node storage per rank.","max":3},{"id":"automation","name":"Auto-trading","description":"Automatically sell market inventory not reserved for contracts.","max":1}]},
-  "strategist":{"name":"Commercial Strategist","icon":"◆","description":"Optimize margins and win better commercial contracts.","talents":[{"id":"pricing","name":"Market Insight","description":"15% more revenue on sales per rank.","max":3},{"id":"negotiation","name":"Negotiation","description":"20% more contract rewards per rank.","max":3},{"id":"seed","name":"Seed Capital","description":"Start each new company with 200 extra credits per rank.","max":3}]}
+  "engineer": {
+    "name": "Industrial Engineering",
+    "icon": "⚙",
+    "description": "Optimize machines, energy, materials and specialized production modes.",
+    "color": "#75b7f9",
+    "nodes": [
+      {
+        "id": "lean",
+        "name": "Lean Manufacturing",
+        "icon": "♻",
+        "description": "8% less input material consumed per rank.",
+        "tier": 1,
+        "col": 1,
+        "max": 3,
+        "effects": {
+          "inputSavings": 0.08
+        }
+      },
+      {
+        "id": "precision",
+        "name": "Process Optimization",
+        "icon": "⚙",
+        "description": "10% faster machine cycles per rank.",
+        "tier": 1,
+        "col": 2,
+        "max": 3,
+        "effects": {
+          "speed": 0.1
+        }
+      },
+      {
+        "id": "grid",
+        "name": "Grid Engineering",
+        "icon": "⚡",
+        "description": "8% less energy required per rank.",
+        "tier": 1,
+        "col": 3,
+        "max": 3,
+        "effects": {
+          "powerSavings": 0.08
+        }
+      },
+      {
+        "id": "recycling",
+        "name": "Closed-Loop Recovery",
+        "icon": "↺",
+        "description": "An additional 6% reduction in material usage per rank.",
+        "tier": 2,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "inputSavings": 0.06
+        },
+        "requires": [
+          "lean"
+        ]
+      },
+      {
+        "id": "yield_mastery",
+        "name": "Precision Yield",
+        "icon": "✦",
+        "description": "6% more finished goods per rank.",
+        "tier": 2,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "output": 0.06
+        },
+        "requires": [
+          "precision"
+        ]
+      },
+      {
+        "id": "heat_recovery",
+        "name": "Heat Recovery",
+        "icon": "☼",
+        "description": "7% lower power requirements per rank.",
+        "tier": 2,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "powerSavings": 0.07
+        },
+        "requires": [
+          "grid"
+        ]
+      },
+      {
+        "id": "adaptive_control",
+        "name": "Adaptive Controls",
+        "icon": "◈",
+        "description": "8% more production speed and 3% extra output per rank.",
+        "tier": 3,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "speed": 0.08,
+          "output": 0.03
+        },
+        "requires": [
+          "recycling",
+          "yield_mastery"
+        ]
+      },
+      {
+        "id": "batch_processing",
+        "name": "Batch Processing",
+        "icon": "▦",
+        "description": "12% faster cycles and 8% extra storage per rank.",
+        "tier": 3,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "speed": 0.12,
+          "storage": 0.08
+        },
+        "requires": [
+          "yield_mastery"
+        ]
+      },
+      {
+        "id": "grid_buffer",
+        "name": "Generator Tuning",
+        "icon": "⚡",
+        "description": "12% more generated electricity per rank.",
+        "tier": 3,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "powerGeneration": 0.12
+        },
+        "requires": [
+          "heat_recovery"
+        ]
+      },
+      {
+        "id": "eco_mode",
+        "name": "Eco Doctrine",
+        "icon": "♧",
+        "description": "22% lower electricity consumption. Exclusive with Turbo Doctrine.",
+        "tier": 4,
+        "col": 1,
+        "max": 1,
+        "effects": {
+          "powerSavings": 0.22
+        },
+        "requires": [
+          "adaptive_control",
+          "grid_buffer"
+        ],
+        "choice": "engineering-doctrine"
+      },
+      {
+        "id": "turbo_mode",
+        "name": "Turbo Doctrine",
+        "icon": "✹",
+        "description": "35% faster machines, but 12% more energy consumption.",
+        "tier": 4,
+        "col": 3,
+        "max": 1,
+        "effects": {
+          "speed": 0.35,
+          "powerSavings": -0.12
+        },
+        "requires": [
+          "batch_processing",
+          "grid_buffer"
+        ],
+        "choice": "engineering-doctrine"
+      },
+      {
+        "id": "master_engineer",
+        "name": "Master Engineer",
+        "icon": "✸",
+        "description": "15% more output and +2 global factory slots.",
+        "tier": 5,
+        "col": 2,
+        "max": 1,
+        "effects": {
+          "output": 0.15,
+          "slots": 2
+        },
+        "requires": [
+          "eco_mode",
+          "turbo_mode"
+        ]
+      }
+    ]
+  },
+  "architect": {
+    "name": "Automation & Logistics",
+    "icon": "⌘",
+    "description": "Specialize in conveyors, storage, dispatch automation and factory expansion.",
+    "color": "#69d5c2",
+    "nodes": [
+      {
+        "id": "routing",
+        "name": "High-Speed Routing",
+        "icon": "↗",
+        "description": "20% more material throughput per rank.",
+        "tier": 1,
+        "col": 1,
+        "max": 3,
+        "effects": {
+          "routing": 0.2
+        }
+      },
+      {
+        "id": "storage",
+        "name": "Smart Warehousing",
+        "icon": "▤",
+        "description": "20% more storage capacity per rank.",
+        "tier": 1,
+        "col": 2,
+        "max": 3,
+        "effects": {
+          "storage": 0.2
+        }
+      },
+      {
+        "id": "layout",
+        "name": "Modular Infrastructure",
+        "icon": "▦",
+        "description": "+1 global factory slot per rank.",
+        "tier": 1,
+        "col": 3,
+        "max": 3,
+        "effects": {
+          "slots": 1
+        }
+      },
+      {
+        "id": "express_links",
+        "name": "Express Conveyors",
+        "icon": "⇢",
+        "description": "15% more transfer capacity per rank.",
+        "tier": 2,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "routing": 0.15
+        },
+        "requires": [
+          "routing"
+        ]
+      },
+      {
+        "id": "inventory_control",
+        "name": "Inventory Control",
+        "icon": "▥",
+        "description": "15% more storage and +1 global slot per rank.",
+        "tier": 2,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "storage": 0.15,
+          "slots": 1
+        },
+        "requires": [
+          "storage"
+        ]
+      },
+      {
+        "id": "automation",
+        "name": "Auto-Trading",
+        "icon": "◉",
+        "description": "Automatically sell any market goods with Auto enabled.",
+        "tier": 2,
+        "col": 3,
+        "max": 1,
+        "effects": {
+          "autoTrading": 1
+        },
+        "requires": [
+          "layout",
+          "storage"
+        ]
+      },
+      {
+        "id": "smart_dispatch",
+        "name": "Smart Dispatch",
+        "icon": "⇄",
+        "description": "10% faster material transfer and 5% more machine speed per rank.",
+        "tier": 3,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "routing": 0.1,
+          "speed": 0.05
+        },
+        "requires": [
+          "express_links"
+        ]
+      },
+      {
+        "id": "buffer_management",
+        "name": "Buffer Management",
+        "icon": "▣",
+        "description": "20% more storage capacity per rank.",
+        "tier": 3,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "storage": 0.2
+        },
+        "requires": [
+          "inventory_control"
+        ]
+      },
+      {
+        "id": "industrial_planning",
+        "name": "Industrial Planning",
+        "icon": "⌂",
+        "description": "+2 global factory slots per rank.",
+        "tier": 3,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "slots": 2
+        },
+        "requires": [
+          "inventory_control",
+          "automation"
+        ]
+      },
+      {
+        "id": "just_in_time",
+        "name": "Just-in-Time",
+        "icon": "↣",
+        "description": "30% more material throughput, but 15% less storage.",
+        "tier": 4,
+        "col": 1,
+        "max": 1,
+        "effects": {
+          "routing": 0.3,
+          "storage": -0.15
+        },
+        "requires": [
+          "smart_dispatch",
+          "buffer_management"
+        ],
+        "choice": "logistics-doctrine"
+      },
+      {
+        "id": "bulk_logistics",
+        "name": "Bulk Logistics",
+        "icon": "▥",
+        "description": "35% more storage and +2 global factory slots.",
+        "tier": 4,
+        "col": 3,
+        "max": 1,
+        "effects": {
+          "storage": 0.35,
+          "slots": 2
+        },
+        "requires": [
+          "buffer_management",
+          "industrial_planning"
+        ],
+        "choice": "logistics-doctrine"
+      },
+      {
+        "id": "factory_os",
+        "name": "Factory Operating System",
+        "icon": "⌘",
+        "description": "30% faster transfer and +5 global factory slots.",
+        "tier": 5,
+        "col": 2,
+        "max": 1,
+        "effects": {
+          "routing": 0.3,
+          "slots": 5
+        },
+        "requires": [
+          "just_in_time",
+          "bulk_logistics"
+        ]
+      }
+    ]
+  },
+  "strategist": {
+    "name": "Commercial Strategy",
+    "icon": "◆",
+    "description": "Pursue profitable contracts, smarter pricing and faster company experience.",
+    "color": "#e7c084",
+    "nodes": [
+      {
+        "id": "pricing",
+        "name": "Market Insight",
+        "icon": "◇",
+        "description": "10% more revenue per market sale per rank.",
+        "tier": 1,
+        "col": 1,
+        "max": 3,
+        "effects": {
+          "pricing": 0.1
+        }
+      },
+      {
+        "id": "negotiation",
+        "name": "Contract Negotiation",
+        "icon": "✍",
+        "description": "12% larger contract payouts per rank.",
+        "tier": 1,
+        "col": 2,
+        "max": 3,
+        "effects": {
+          "contracts": 0.12
+        }
+      },
+      {
+        "id": "seed",
+        "name": "Seed Capital",
+        "icon": "▣",
+        "description": "+200 credits on future investor resets per rank.",
+        "tier": 1,
+        "col": 3,
+        "max": 3,
+        "effects": {
+          "startup": 200
+        }
+      },
+      {
+        "id": "price_forecasting",
+        "name": "Price Forecasting",
+        "icon": "⌁",
+        "description": "8% higher sales prices per rank.",
+        "tier": 2,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "pricing": 0.08
+        },
+        "requires": [
+          "pricing"
+        ]
+      },
+      {
+        "id": "regional_contracts",
+        "name": "Regional Partnerships",
+        "icon": "▧",
+        "description": "12% more contract income per rank.",
+        "tier": 2,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "contracts": 0.12
+        },
+        "requires": [
+          "negotiation"
+        ]
+      },
+      {
+        "id": "workforce",
+        "name": "Workforce Development",
+        "icon": "★",
+        "description": "12% more management XP from revenue per rank.",
+        "tier": 2,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "xp": 0.12
+        },
+        "requires": [
+          "seed",
+          "negotiation"
+        ]
+      },
+      {
+        "id": "premium_goods",
+        "name": "Premium Products",
+        "icon": "✧",
+        "description": "8% more sales revenue per rank.",
+        "tier": 3,
+        "col": 1,
+        "max": 2,
+        "effects": {
+          "pricing": 0.08
+        },
+        "requires": [
+          "price_forecasting"
+        ]
+      },
+      {
+        "id": "procurement",
+        "name": "Procurement Leverage",
+        "icon": "♻",
+        "description": "5% lower material use and 6% larger contract payouts per rank.",
+        "tier": 3,
+        "col": 2,
+        "max": 2,
+        "effects": {
+          "inputSavings": 0.05,
+          "contracts": 0.06
+        },
+        "requires": [
+          "regional_contracts"
+        ]
+      },
+      {
+        "id": "corporate_training",
+        "name": "Corporate Academy",
+        "icon": "✦",
+        "description": "15% more management XP and +1 factory slot per rank.",
+        "tier": 3,
+        "col": 3,
+        "max": 2,
+        "effects": {
+          "xp": 0.15,
+          "slots": 1
+        },
+        "requires": [
+          "workforce"
+        ]
+      },
+      {
+        "id": "luxury_brand",
+        "name": "Premium Brand",
+        "icon": "♛",
+        "description": "25% larger market sale revenue.",
+        "tier": 4,
+        "col": 1,
+        "max": 1,
+        "effects": {
+          "pricing": 0.25
+        },
+        "requires": [
+          "premium_goods",
+          "procurement"
+        ],
+        "choice": "commercial-doctrine"
+      },
+      {
+        "id": "volume_trader",
+        "name": "Volume Trader",
+        "icon": "▥",
+        "description": "30% larger contract payouts and 10% more management XP.",
+        "tier": 4,
+        "col": 3,
+        "max": 1,
+        "effects": {
+          "contracts": 0.3,
+          "xp": 0.1
+        },
+        "requires": [
+          "procurement",
+          "corporate_training"
+        ],
+        "choice": "commercial-doctrine"
+      },
+      {
+        "id": "industrial_empire",
+        "name": "Industrial Empire",
+        "icon": "✹",
+        "description": "15% more all sale revenue, 15% contract income and 10% XP.",
+        "tier": 5,
+        "col": 2,
+        "max": 1,
+        "effects": {
+          "pricing": 0.15,
+          "contracts": 0.15,
+          "xp": 0.1
+        },
+        "requires": [
+          "luxury_brand",
+          "volume_trader"
+        ]
+      }
+    ]
+  }
 }
