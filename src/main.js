@@ -144,6 +144,7 @@ function updateNodeStats(){
     let label,bufferText='';
     if(!n.enabled)label='⏸ Paused';
     else if(def.power)label=`⚡ +${fmt(generatorOutput(state,n,catalog))} generated`;
+    else if(n.kind==='warehouse')label=`▥ ${fmt(amount)} goods stored`;
     else if(n.kind==='market'){
       const sale=marketActivity(n),deliveries=state.edges.filter(e=>e.to===n.id&&e.resource!=='power');
       label=sale.units>0?`✓ Sold ${fmt(sale.units)} · +${money(sale.revenue)}`
@@ -162,7 +163,8 @@ function updateNodeStats(){
         :power<0.99?`⚠ Power limited · ${rateText}`
         :filled?`⚠ Output full · ${rateText}`:`◌ Startup / settling · ${rateText}`;
     }else label='● Ready';
-    if(n.kind==='market')bufferText=`${fmt(amount)} stored · ${state.autoSell.metal?'metal auto-sell ON':'manual metal sales'}`;
+    if(n.kind==='warehouse')bufferText=`${fmt(amount)} total · ${fmt(capacity(state,n))} cap/resource`;
+    else if(n.kind==='market')bufferText=`${fmt(amount)} stored · ${state.autoSell.metal?'metal auto-sell ON':'manual metal sales'}`;
     else if(def.output&&def.output!=='data')bufferText=`${catalog.resources[def.output]?.name||def.output}: ${fmt(n.buffer[def.output]||0)} stored`;
     else if(def.output==='data')bufferText='Research data sent directly to R&D';
     else bufferText='Power distribution grid';
@@ -189,7 +191,7 @@ function diagnosis(node){
   const inventory=def.output==='data'?0:(node.buffer[def.output]||0);
   const maxStock=capacity(state,node),outputName=catalog.resources[def.output]?.name||def.output;
   if(!node.enabled)return {title:'Machine paused',action:'Select Resume to restart production.',type:'warning'};
-  if(!def.output)return {title:def.power?'Electricity generator':'Trade Terminal',action:def.power?'Connect its yellow output to the power inputs of consuming machines.':'Connect a production output to the terminal to sell or reserve goods.',type:'okay'};
+  if(!def.output)return node.kind==='warehouse'?{title:'Warehouse ready',action:'Connect any machine to the left input, then dispatch stored goods through a matching colored output. Disable Auto Sell to reserve materials for timed orders.',type:'okay'}:{title:def.power?'Electricity generator':'Trade Terminal',action:def.power?'Connect its yellow output to the power inputs of consuming machines.':'Connect a production output to the terminal to sell or reserve goods.',type:'okay'};
   if(def.output!=='data'&&inventory>=maxStock-0.1){
     const downstream=state.edges.some(e=>e.from===node.id&&e.resource===def.output);
     return {title:outputName+' storage full',action:downstream
@@ -219,7 +221,7 @@ function renderInspector(){
   const base=def.output?ideal:def.power?generatorOutput(state,node,catalog):capacity(state,node);
   const improved=def.output?maxProductionRate(state,{...node,level:node.level+1},catalog):def.power?generatorOutput(state,{...node,level:node.level+1},catalog):capacity(state,{...node,level:node.level+1});
   const unit=def.output?' /s':def.power?' power':' items';
-  const inv=[...new Set([...Object.keys(def.inputs||{}),...(def.output&&def.output!=='data'?[def.output]:[])])];
+  const inv=node.kind==='warehouse'?Object.keys(catalog.resources).filter(r=>r!=='data'):[...new Set([...Object.keys(def.inputs||{}),...(def.output&&def.output!=='data'?[def.output]:[])])];
   const stock=inv.map(id=>`<div class="diagnostic-row"><span>${safe(catalog.resources[id]?.name||id)}</span><strong>${fmt(node.buffer[id]||0)} stored</strong></div>`).join('')||'<p class="muted tiny">No material inventory</p>';
   const diagnostic=productionDiagnostics(node),power=gridStatus(state,catalog).efficiency.get(node.id)||0;
   const rates=Object.entries(def.inputs||{}).map(([id,qty])=>{
