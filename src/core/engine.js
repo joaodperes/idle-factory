@@ -1,3 +1,4 @@
+import {tickOrders,fulfillOrder,availableStock} from './orders.js';
 import {researchModifier} from './research.js';
 import {factoryLevel,freeTalentPoints,talentModifier} from './talents.js';
 /** Deterministic discrete-time factory engine. All production flows through saved graph edges. */
@@ -14,7 +15,7 @@ export function marketActivity(node){return recentMarketSales.get(node)||{units:
 const BASE_LINK_RATE=3;
 const bonus=(state,key)=>talentModifier(state,key);
 const getResearch=(s,id)=>s.research[id]===true;
-export function capacity(state,node){return (node.kind==='market'?600:OUTPUT_LIMIT)*(1+bonus(state,'storage'))*(1+0.25*(node.level-1));}
+export function capacity(state,node){return (node.kind==='market'?600:node.kind==='warehouse'?600:OUTPUT_LIMIT)*(1+bonus(state,'storage')+(node.kind==='warehouse'?bonus(state,'warehouseCapacity'):0))*(1+0.25*(node.level-1));}
 /** Maximum output when powered and supplied; compare with measured productionActivity(). */
 export function maxProductionRate(state,node,catalog){
   const def=catalog.facilities[node.kind];if(!def?.output)return 0;
@@ -83,23 +84,9 @@ export function gridStatus(state,catalog){
   }
   return {efficiency,supply,demand,groups};
 }
-export function contractAvailable(state,contract){return state.dailyContracts?.[contract.id]!==new Date().toISOString().slice(0,10);}
-export function marketQuantity(state,resource){return state.nodes.filter(n=>n.kind==='market').reduce((s,n)=>s+(n.buffer[resource]||0),0);}
-export function completeContract(state,catalog,id){
-  const contract=catalog.contracts.find(c=>c.id===id);
-  if(!contract)return 'Contract unavailable';
-  if(!contractAvailable(state,contract))return 'Contract is on cooldown';
-  if(marketQuantity(state,contract.resource)+1e-7<contract.amount)return 'Not enough goods at trade terminals';
-  let remaining=contract.amount;
-  for(const n of state.nodes){if(n.kind!=='market')continue;const taken=Math.min(remaining,n.buffer[contract.resource]||0);n.buffer[contract.resource]-=taken;remaining-=taken;}
-  const payoutMultiplier=1+bonus(state,'contracts');
-  earn(state,contract.reward*payoutMultiplier,contract.xp);
-  state.dailyContracts=state.dailyContracts||{};
-  state.dailyContracts[id]=new Date().toISOString().slice(0,10);
-  state.contractRuns[id]=state.runElapsed;
-  state.runContracts++;state.contractsFilled++;
-  return null;
-}
+export function contractAvailable(state,order){return !!order&&state.orders?.some(o=>o.id===order.id&&o.expiresAt>=(state.orderClock||0));}
+export function marketQuantity(state,resource){return availableStock(state,resource);}
+export function completeContract(state,catalog,id){return fulfillOrder(state,catalog,id,earn);}
 function produceOneSecond(state,catalog,dt,offlineFactor){
   const defs=catalog.facilities, {efficiency}=gridStatus(state,catalog);
   const rate=linkRate(state)*dt;
@@ -167,6 +154,7 @@ export function simulate(state,catalog,seconds,{offline=false}={}){
   const efficiency=offline?Math.min(1,0.5+researchModifier(state,'offlinePower')):1;
   const simulated=duration;
   while(duration>1e-7){const dt=Math.min(1,duration);produceOneSecond(state,catalog,dt,efficiency);duration-=dt;}
+  if(!offline)tickOrders(state,catalog,simulated);
   for(const node of state.nodes){
     const def=catalog.facilities[node.kind];if(!def?.output)continue;
     const activity=productionActivity(node);
@@ -175,5 +163,5 @@ export function simulate(state,catalog,seconds,{offline=false}={}){
     if(diag)diag.seconds=simulated;
   }
 }
-export function prestigeGain(state){return Math.max(0,Math.floor(Math.sqrt(state.runRevenue/2500)+state.runContracts*0.35));}
+export function prestigeGain(state){return Math.max(0,Math.floor((Math.sqrt(state.runRevenue/2500)+state.runContracts*0.35)*(1+bonus(state,'angelGain'))));}
 export function companyValue(state,catalog){return state.credits+state.nodes.reduce((sum,n)=>sum+catalog.facilities[n.kind].cost*n.level,0)+state.runRevenue*0.4;}
