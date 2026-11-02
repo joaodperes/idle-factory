@@ -34,11 +34,11 @@
           <div id="blueprints-card" class="card"><h2>Saved blueprints</h2><p class="muted tiny">Rebuild a complete saved layout, paying for its facilities. Existing machines are recycled for partial credit.</p><div id="layouts"></div></div>
         </aside>
         <div class="editor-wrap">
-          <div class="editor-toolbar"><span id="editor-hint">Choose an output port, then a compatible input port to connect.</span><span id="network-summary">Network live</span></div>
-          <div class="editor-scroll" id="editor-scroll" tabindex="0" aria-label="Interactive factory diagram">
-            <div class="editor-world" id="editor-world"><svg class="links" id="links" viewBox="0 0 2500 1650" aria-hidden="true"></svg><div id="nodes"></div></div>
+          <div class="editor-toolbar"><span id="editor-hint">Choose an output port, then a compatible input port to connect.</span><div class="editor-tools"><span id="network-summary">Network live</span><div class="canvas-zoom-controls" role="group" aria-label="Factory canvas zoom"><button type="button" id="zoom-out" title="Zoom out (Ctrl + mouse wheel)" aria-label="Zoom canvas out">−</button><output id="zoom-value" aria-label="Canvas zoom">100%</output><button type="button" id="zoom-in" title="Zoom in (Ctrl + mouse wheel)" aria-label="Zoom canvas in">+</button><button type="button" id="zoom-fit" title="Fit factory on screen">Fit</button></div></div></div>
+          <div class="editor-scroll" id="editor-scroll" tabindex="0" aria-label="Interactive factory diagram. Use Control plus mouse wheel to zoom the canvas.">
+            <div class="editor-stage" id="editor-stage"><div class="editor-world" id="editor-world"><svg class="links" id="links" viewBox="0 0 2500 1650" aria-hidden="true"></svg><div id="nodes"></div></div></div>
           </div>
-          <div class="editor-footer"><span><i class="legend resource"></i> Materials</span><span><i class="legend electricity"></i> Power</span><span>Drag the card header to reposition · Click a line to remove it</span></div>
+          <div class="editor-footer"><span><i class="legend resource"></i> Materials</span><span><i class="legend electricity"></i> Power</span><span>Ctrl/⌘ + wheel: canvas zoom · Drag header: move · Click line: disconnect</span></div>
         </div>
         <aside class="sidebar inspector" id="inspector"></aside>
       </div>
