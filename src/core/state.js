@@ -61,7 +61,8 @@ export function sanitizeSave(raw, catalog) {
     if(!catalog.contracts.some(c=>c.id===o.templateId&&c.resource===o.resource))return [];
     const expiresAt=number(o.expiresAt,0,1e12),createdAt=number(o.createdAt,0,1e12);
     if(expiresAt<=createdAt||expiresAt<=s.orderClock)return [];
-    return [{id:o.id,templateId:o.templateId,resource:o.resource,amount:number(o.amount,1,1e9),reward:number(o.reward,1,1e10),xp:number(o.xp,0,1e8),createdAt,expiresAt}];
+    const amount=number(o.amount,1,1e9);
+    return [{id:o.id,templateId:o.templateId,resource:o.resource,amount,reward:number(o.reward,1,1e10),xp:number(o.xp,0,1e8),createdAt,expiresAt,reserved:Math.min(amount,number(o.reserved,0,1e9))}];
   });
   const rawDaily=asObject(raw.dailyContracts);
   s.dailyContracts={};
