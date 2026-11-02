@@ -11,7 +11,7 @@
 <body>
 <div id="app">
   <header class="topbar">
-    <div class="brand"><span class="logo">▦</span><div><strong>Idle Factory</strong><small>INDUSTRIAL SIMULATOR <span class="version">v1.3-dev</span></small></div></div>
+    <div class="brand"><span class="logo">▦</span><div><strong>Idle Factory</strong><small>INDUSTRIAL SIMULATOR <span class="version">v1.4-dev</span></small></div></div>
     <div class="metrics" id="metrics"></div>
     <button class="icon-button" id="help-btn" title="How to play" aria-label="Help">?</button>
   </header>
@@ -43,7 +43,7 @@
         <aside class="sidebar inspector" id="inspector"></aside>
       </div>
     </section>
-    <section class="panel" id="panel-contracts"><div class="section-title"><div><h1>Commercial operations</h1><p>Deliver goods to trade terminals, sell inventory, and secure higher-margin contracts.</p></div></div><div class="two-col"><div class="card"><h2>Order book</h2><div id="contracts-list"></div></div><div class="card"><h2>Market terminal</h2><p class="muted">Dynamic prices shift as demand changes. Disable automatic sales to reserve stock for contracts.</p><div id="market-list"></div></div></div></section>
+    <section class="panel" id="panel-contracts"><div class="section-title"><div><h1>Commercial operations</h1><p>Race against expiring customer orders: reserve materials in warehouses or terminals and deliver before the countdown.</p></div></div><div class="two-col"><div class="card"><h2>Order book</h2><div id="contracts-list"></div></div><div class="card"><h2>Market terminal</h2><p class="muted">Dynamic prices shift as demand changes. Disable automatic sales to reserve stock for contracts.</p><div id="market-list"></div></div></div></section>
     <section class="panel" id="panel-management"><div class="section-title"><div><h1>Factory progression & talents</h1><p>Earn Factory XP from sales and contracts. At Level 5, unlock talent points to spend across three connected trees.</p></div></div><div class="card"><div class="inline-stats" id="level-stats"></div></div><div id="talent-branches"></div></section>
     <section class="panel" id="panel-research"><div class="section-title"><div><h1>Research & development</h1><p>Develop branching technologies, specialize your factory, and license discoveries after your initial research.</p></div></div><div class="research-grid" id="research-list"></div></section>
     <section class="panel" id="panel-investors"><div class="section-title"><div><h1>Angel investors</h1><p>Reorganize into a new company for permanent advantages — while retaining Factory XP, talents and saved layouts.</p></div></div><div class="two-col"><div class="card investor"><h2>Company valuation</h2><div id="valuation"></div><button id="prestige-btn" class="primary">Seek investment & restart</button><p class="muted tiny">Reset removes the current factory, inventory, technology, cash and contracts. Investments, Factory XP, talents and blueprints survive.</p></div><div class="card"><h2>Permanent investments</h2><div id="investment-list"></div></div></div></section>
