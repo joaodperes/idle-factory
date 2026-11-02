@@ -2,6 +2,6 @@
   "capital":{"name":"Startup Capital","description":"+300 starting credits per level","cost":1,"growth":1.7,"max":12},
   "dividends":{"name":"Investor Network","description":"+10% all sales revenue per level","cost":2,"growth":1.9,"max":12},
   "engineering":{"name":"Legacy Engineering","description":"+10% factory output per level","cost":3,"growth":2,"max":10},
-  "infrastructure":{"name":"Industrial Estate","description":"+3 factory capacity per level","cost":2,"growth":1.8,"max":12},
+  "infrastructure":{"name":"Industrial Estate","description":"+3 industrial slots per rank; every 2 ranks also expand per-type construction limits","cost":2,"growth":1.8,"max":12},
   "patents":{"name":"Patent Library","description":"+20% link throughput per level","cost":3,"growth":2,"max":8}
 }
