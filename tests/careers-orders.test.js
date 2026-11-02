@@ -63,6 +63,7 @@ test('customer orders pay high bonuses when filled before their expiry',()=>{
  simulate(s,catalog,2);
  const order=s.orders[0],stock=makeNode('warehouse','warehouse',500,200);
  s.nodes.push(stock);stock.buffer[order.resource]=order.amount;
+ s.autoSell[order.resource]=false;
  const before=s.credits;
  assert.equal(completeContract(s,catalog,order.id),null);
  assert.ok(s.credits-before>=order.reward);
