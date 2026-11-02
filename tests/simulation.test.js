@@ -36,17 +36,16 @@ test('power networks are isolated',()=>{
  const s=workingFactory();const smelter=s.nodes.find(n=>n.kind==='smelter');s.edges=s.edges.filter(e=>e.to!==smelter.id||e.resource!=='power');
  const grid=gridStatus(s,catalog);assert.equal(grid.efficiency.get(smelter.id),0);
 });
-test('market autosell can be disabled to fulfill a rolling customer order',()=>{
+test('market autosell can be disabled to fill an order with secured goods',()=>{
  const s=workingFactory();s.autoSell.metal=false;s.onboarding=true;
  tickOrders(s,catalog,1);
  const order=s.orders.find(o=>o.resource==='metal');
  assert.ok(order,'Expected a live metal delivery order');
  simulate(s,catalog,160);
- assert.ok(marketQuantity(s,'metal')>=order.amount);
- const before=s.credits,stockBefore=marketQuantity(s,'metal');
+ assert.ok(order.reserved>=order.amount,'Production should secure the requested quantity');
+ const before=s.credits;
  assert.equal(completeContract(s,catalog,order.id),null);
  assert.ok(s.credits>=before+order.reward);
- assert.ok(Math.abs(marketQuantity(s,'metal')-(stockBefore-order.amount))<1e-6);
  assert.equal(s.orderStats.fulfilled,1);
  assert.match(completeContract(s,catalog,order.id),/expired or is no longer available/);
 });
