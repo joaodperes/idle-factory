@@ -6,7 +6,7 @@
   "description": "Diagram-driven idle factory planning game for GitHub Pages",
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/main.js && node --check src/core/engine.js && node --check src/core/state.js && node --check src/core/actions.js && node --check src/core/graph.js && node --check src/core/tutorial.js",
+    "check": "node --check src/main.js && node --check src/core/engine.js && node --check src/core/state.js && node --check src/core/actions.js && node --check src/core/graph.js && node --check src/core/tutorial.js && node --check src/core/talents.js && node --check src/core/router.js",
     "dev": "node scripts/dev-server.mjs"
   },
   "engines": {
