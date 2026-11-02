@@ -328,7 +328,7 @@ function renderManagement(){
   $('#talent-branches').innerHTML=`${unlock}<div class="talent-tree-intro"><p>Choose your first career carefully. You are committed to it until spending 49 points in the tree and learning its capstone with point 50. Only then can you start the next career. Factory XP requirements increase geometrically.</p><button data-action="respec" ${pointsEarned(state)&&Object.values(state.talents).some(Boolean)&&!currentCareer(state,catalog)?'':'disabled'}>↺ Refund all talent points</button></div><div class="talent-tree-columns">${branches}</div>`;
 }
 function renderResearch(){
-  const lab=catalog.facilities.lab, count=state.nodes.filter(n=>n.kind==='lab').length;
+  const lab=catalog.facilities.lab, count=state.nodes.filter(n=>n.kind==='lab'||n.kind==='quantumlab').length;
   const notice=count
     ?'<p class="muted tiny">Research Labs consume Devices and power to produce Research Data. Complete connected technologies, then license discoveries repeatedly for credits and XP.</p>'
     :`<p class="muted tiny">Build a Research Lab at ${money(lab.unlock)} run revenue (cost: ${money(lab.cost)}), then connect Devices and electricity.</p>`;
@@ -673,7 +673,7 @@ if(inTutorial())advanceTutorial(state);
 let lastTick=Date.now();
 setInterval(()=>{
   const now=Date.now();const elapsed=Math.max(0,(now-lastTick)/1000);lastTick=now;
-  if(elapsed>60)simulate(state,catalog,Math.min(8*3600,elapsed),{offline:true});
+  if(elapsed>60||document.visibilityState==='hidden')simulate(state,catalog,Math.min(8*3600,elapsed),{offline:true});
   else if(elapsed>0)simulate(state,catalog,elapsed);
   if(advanceTutorial(state)){refresh();if(inTutorial())focusGuidedTarget();}
   else liveRefresh();
