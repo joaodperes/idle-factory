@@ -58,7 +58,7 @@ export function sanitizeSave(raw, catalog) {
     if(!id || used.has(id))return [];
     used.add(id);
     const buffer={}; for(const resource of Object.keys(catalog.resources)) buffer[resource]=number(asObject(n.buffer)[resource],0,1e4);
-    return [{id,kind:n.kind,x:integer(n.x,0,2400),y:integer(n.y,0,1500),level:integer(n.level,1,20)||1,enabled:n.enabled!==false,buffer}];
+    return [{id,kind:n.kind,x:integer(n.x,0,1e7),y:integer(n.y,0,1e7),level:integer(n.level,1,20)||1,enabled:n.enabled!==false,buffer}];
   });
   const seen=new Set();
   s.edges=(Array.isArray(raw.edges)?raw.edges:[]).slice(0,260).flatMap(e=>{
@@ -78,7 +78,7 @@ export function sanitizeSave(raw, catalog) {
   s.tutorialStep=integer(raw.tutorialStep,s.onboarding?7:0,7);
   s.layouts=(Array.isArray(raw.layouts)?raw.layouts:[]).slice(0,5).map(layout=>({
     name:typeof layout?.name==='string'?layout.name.slice(0,32):'Saved layout',
-    nodes:(Array.isArray(layout?.nodes)?layout.nodes:[]).slice(0,120).filter(n=>catalog.facilities[n.kind]).map(n=>({id:text(n.id),kind:n.kind,x:integer(n.x,0,2400),y:integer(n.y,0,1500)})),
+    nodes:(Array.isArray(layout?.nodes)?layout.nodes:[]).slice(0,120).filter(n=>catalog.facilities[n.kind]).map(n=>({id:text(n.id),kind:n.kind,x:integer(n.x,0,1e7),y:integer(n.y,0,1e7)})),
     edges:(Array.isArray(layout?.edges)?layout.edges:[]).slice(0,260).map(e=>({from:text(e.from),to:text(e.to),resource:text(e.resource)}))
   }));
   s.nextId=Math.max(s.nextId,1+Math.max(0,...s.nodes.map(n=>Number(n.id.slice(1))||0)));
