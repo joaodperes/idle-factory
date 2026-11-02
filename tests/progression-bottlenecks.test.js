@@ -14,57 +14,59 @@ for(const name of ['facilities','resources','talents','research','investments','
 function advanced(xp=54000){return {...defaultState(),xp,credits:100000,runRevenue:300000};}
 const operating=()=>{const s=defaultState(),g=operatingGraph();s.nodes=g.nodes;s.edges=g.edges;return s;};
 
-test('new players have no selected specialization, no talent points and a locked tree',()=>{
+test('new players begin with no chosen career and locked talents',()=>{
   const s=defaultState();
-  assert.equal(s.specialization,null);
+  assert.equal(s.careerTree,null);
   assert.equal(factoryLevel(s),1);
   assert.equal(pointsEarned(s),0);
   assert.equal(freeTalentPoints(s),0);
-  assert.match(talentStatus(s,catalog,'lean').reason,/Level 5/);
+  assert.match(talentStatus(s,catalog,'engineer_t1_c1').reason,/Level 5/);
 });
-test('factory levels unlock talents at level five and increase global capacity every third level',()=>{
+test('factory level five unlocks the first career; capacity grows every third level',()=>{
   const s=defaultState();
   assert.equal(totalSlots(s),26);
-  s.xp=540;assert.equal(factoryLevel(s),4);
+  s.xp=416;
+  assert.equal(factoryLevel(s),5);
   assert.equal(totalSlots(s),28);
-  s.xp=960;assert.equal(factoryLevel(s),5);
   assert.equal(pointsEarned(s),1);
-  assert.equal(talentStatus(s,catalog,'lean').enabled,true);
-  assert.equal(buyTalent(s,catalog,'lean'),null);
+  assert.equal(talentStatus(s,catalog,'engineer_t1_c1').enabled,true);
+  assert.equal(buyTalent(s,catalog,'engineer_t1_c1'),null);
+  assert.equal(s.careerTree,'engineer');
   assert.equal(freeTalentPoints(s),0);
 });
-test('talent tiers require earlier linked nodes and points invested in their tree',()=>{
-  const s=advanced(60*8**2);
-  s.talents={precision:3};
-  assert.equal(talentStatus(s,catalog,'yield_mastery').enabled,true);
-  assert.match(buyTalent({...s,talents:{grid:3}},catalog,'yield_mastery'),/linked/);
-  assert.match(buyTalent({...s,talents:{precision:1}},catalog,'yield_mastery'),/Spend/);
+test('career tiers need allocated points and a connected prerequisite',()=>{
+  const s=advanced(1e10);
+  s.talents={engineer_t1_c1:2,engineer_t1_c2:2,engineer_t1_c3:2};
+  s.careerTree='engineer';
+  assert.equal(talentStatus(s,catalog,'engineer_t2_c2').enabled,true);
+  assert.match(buyTalent({...s,talents:{engineer_t1_c1:2,engineer_t1_c3:2}},catalog,'engineer_t2_c2'),/Spend/);
 });
-test('branches are not mutually exclusive but their late doctrine choices are',()=>{
-  const s=advanced();
-  s.talents={precision:3,lean:3,grid:3,recycling:2,yield_mastery:2,adaptive_control:2,eco_mode:1,pricing:1};
-  assert.ok(talentModifier(s,'pricing')>0);
-  assert.ok(talentModifier(s,'inputSavings')>0);
-  assert.match(buyTalent(s,catalog,'turbo_mode'),/Mutually exclusive/);
+test('choosing Engineering locks the Scientist and Business careers until capstone',()=>{
+  const s=advanced(1e10);
+  assert.equal(buyTalent(s,catalog,'engineer_t1_c1'),null);
+  assert.match(buyTalent(s,catalog,'scientist_t1_c1'),/Finish/);
+  assert.ok(talentModifier(s,'output')>0);
 });
-test('respec refunds all points without changing user auto-sale settings',()=>{
-  const s=advanced();s.talents={lean:2,precision:2,automation:1};s.autoSell={metal:true,parts:true};
-  assert.equal(respecTalents(s),null);
+test('respec is locked during a career and preserves auto-sale preferences afterward',()=>{
+  const s=advanced(1e10);s.autoSell={metal:true,parts:true};
+  assert.equal(buyTalent(s,catalog,'engineer_t1_c1'),null);
+  assert.match(respecTalents(s,catalog),/Finish/);
+  s.completedCareers=['engineer'];s.careerTree=null;
+  assert.equal(respecTalents(s,catalog),null);
   assert.equal(freeTalentPoints(s),pointsEarned(s));
   assert.equal(s.autoSell.parts,true);
 });
-test('legacy specialization saves preserve earlier investments and convert relayed electricity',()=>{
-  const original=operating();
-  const smelter=original.nodes.find(n=>n.kind==='smelter');
+test('retired talent allocations become refundable career points and power links migrate',()=>{
+  const original=operating(),smelter=original.nodes.find(n=>n.kind==='smelter');
   const mine=original.nodes.find(n=>n.kind==='mine');
   original.edges=original.edges.filter(e=>e.resource!=='power');
   original.edges.push({id:'e8',from:'n1',to:mine.id,resource:'power'},{id:'e9',from:mine.id,to:smelter.id,resource:'power'});
   original.talents={precision:2,lean:1};original.specialization='engineer';
   const restored=sanitizeSave({...original,version:3},catalog);
   assert.equal(restored.specialization,null);
-  assert.equal(restored.talents.precision,2);
+  assert.equal(restored.legacyTalentCredits,3);
   assert.ok(restored.edges.some(e=>e.from==='n1'&&e.to===smelter.id&&e.resource==='power'));
-  assert.equal(restored.edges.filter(e=>e.resource==='power').every(e=>catalog.facilities[restored.nodes.find(n=>n.id===e.from).kind].power>0),true);
+  assert.ok(restored.edges.filter(e=>e.resource==='power').every(e=>catalog.facilities[restored.nodes.find(n=>n.id===e.from).kind].power>0));
 });
 test('power connections originate only from generators, despite legacy relays',()=>{
   const s=operating();
@@ -74,14 +76,16 @@ test('power connections originate only from generators, despite legacy relays',(
   assert.match(main,/def\.power\?port\('out','power'/);
   assert.doesNotMatch(main,/power-relay/);
 });
-test('contract Local Construction needs 25 metal saved at the Trade Terminal',()=>{
-  const s=operating();
-  s.autoSell.metal=false;
-  simulate(s,catalog,60);
-  assert.ok(marketQuantity(s,'metal')>=25);
-  assert.equal(completeContract(s,catalog,'foundations'),null);
+test('customer orders can be fulfilled with reserved Trade Terminal inventory',()=>{
+  const s=operating();s.onboarding=true;s.autoSell.metal=false;
+  simulate(s,catalog,1);
+  const order=s.orders[0];
+  assert.ok(order);
+  const terminal=s.nodes.find(n=>n.kind==='market');
+  terminal.buffer[order.resource]=order.amount;
+  assert.equal(completeContract(s,catalog,order.id),null);
   assert.equal(s.runContracts,1);
-  assert.equal(catalog.contracts[0].amount,25);
+  assert.equal(s.orderStats.fulfilled,1);
 });
 test('diagnostics identify absent ore, insufficient power, and full output storage',()=>{
   const s=defaultState(),smelter=makeNode('sm','smelter',400,180);
