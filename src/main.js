@@ -1,7 +1,7 @@
 import {loadCatalog} from './core/catalog.js';
 import {SAVE_KEY,loadLocal,sanitizeSave,serializeSave,defaultState} from './core/state.js';
 import {fmt,timeLabel} from './core/format.js';
-import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,earn} from './core/engine.js';
+import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,sell,marketActivity} from './core/engine.js';
 import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility} from './core/graph.js';
 import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,buyTalent,buyInvestment,resetCompany,saveLayout,loadLayout,setSpecialization} from './core/actions.js';
 import {TUTORIAL_STEPS,advanceTutorial,tutorialPort} from './core/tutorial.js';
@@ -54,12 +54,12 @@ function nodeMarkup(node){
   const materialIn=isMarket?['any']:Object.keys(def.inputs||{});
   const powerIn=def.demand>0;
   const out=def.output&&def.output!=='data'?def.output:null;
-  const port=(kind,resource,label)=>`<button class="port ${kind} ${resource==='power'?'power':'matter'}" data-port="${kind}" data-resource="${resource}" data-node="${node.id}" title="${safe(label)}" aria-label="${safe(label)}"></button>`;
+  const port=(kind,resource,label)=>`<button class="port ${kind} ${resource==='power'?'power':'matter'}" data-port="${kind}" data-resource="${resource}" data-node="${node.id}" style="--port-color:${catalog.resources[resource]?.color||'#449eaa'}" title="${safe(label)}" aria-label="${safe(label)}"></button>`;
   return `<div class="factory-node ${node.id===state.selectedNode?'selected':''} ${node.enabled?'':'disabled-node'}" data-node-id="${node.id}" style="left:${node.x}px;top:${node.y}px;--node-color:${def.color}">
     <div class="node-head" data-drag="${node.id}"><span class="node-icon">${def.icon}</span><span><strong>${safe(def.name)}</strong><small>UNIT ${node.id.toUpperCase()} · LV ${node.level}</small></span></div>
     <div class="node-body"><div class="node-throughput" data-node-rate="${node.id}">Calculating…</div><div class="node-buffer" data-node-stock="${node.id}">0 stored</div></div>
     <div class="port-set left">${materialIn.map(r=>port('in',r,r==='any'?'Accept any product':`Input: ${r}`)).join('')}${powerIn?port('in','power','Power input'):''}</div>
-    <div class="port-set right">${out?port('out',out,`Output: ${out}`):''}${port('out','power','Power network output')}</div>
+    <div class="port-set right">${out?port('out',out,`Output: ${out}`):''}${isMarket?'':port('out','power','Power network output')}</div>
     <button class="node-select" data-action="select" data-id="${node.id}" aria-label="Inspect ${safe(def.name)}">Inspect ↗</button>
   </div>`;
 }
@@ -80,8 +80,8 @@ function drawLinks(){
     if(!a||!b)return '';
     const dx=Math.max(55,Math.abs(b.x-a.x)*0.42);
     const d=`M${a.x},${a.y} C${a.x+dx},${a.y} ${b.x-dx},${b.y} ${b.x},${b.y}`;
-    const color=edge.resource==='power'?'#e1b564':(catalog.resources[edge.resource]?.color||'#63b9b7');
-    return `<path d="${d}" class="edge-back"/><path d="${d}" stroke="${color}" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="${d}" class="edge-hit" data-edge="${edge.id}" aria-label="Remove ${edge.resource} connection"><title>${edge.resource}: ${nodeDef(from).name} → ${nodeDef(to).name} (click to disconnect)</title></path>`;
+    const color=edge.resource==='power'?'#f2db3d':(catalog.resources[edge.resource]?.color||'#63b9b7');
+    return `<path d="${d}" class="edge-back"/><path d="${d}" stroke="${color}" stroke-width="${edge.resource==='power'?3.4:2.8}" ${edge.resource==='power'?'stroke-dasharray="9 6"':''} fill="none" stroke-linecap="round"/><path d="${d}" class="edge-hit" data-edge="${edge.id}" aria-label="Remove ${edge.resource} connection"><title>${edge.resource}: ${nodeDef(from).name} → ${nodeDef(to).name} (click to disconnect)</title></path>`;
   }).join('');
   svg.innerHTML=curves;
 }
@@ -99,12 +99,20 @@ function updateNodeStats(){
     let label;
     if(!n.enabled)label='Paused';
     else if(def.power)label=`⚡ +${fmt(def.power*(1+0.2*(n.level-1)))} power`;
-    else if(n.kind==='market')label='Trade & dispatch terminal';
+    else if(n.kind==='market'){
+      const sale=marketActivity(n);
+      const deliveries=state.edges.filter(e=>e.to===n.id&&e.resource!=='power');
+      label=sale.units>0?`✓ Sold ${fmt(sale.units)} · +${money(sale.revenue)}`
+        :!deliveries.length?'⚠ No material route'
+        :amount>0?'● Goods ready to sell'
+        :deliveries.some(e=>state.autoSell[e.resource])?'◌ Waiting for auto-sale goods':'◌ Waiting for delivered goods';
+    }
     else if(power<0.99)label=`⚠ ${fmt(power*100,0)}% grid power`;
     else if(def.inputs && Object.entries(def.inputs).some(([r,q])=>(n.buffer[r]||0)<q))label='◌ Input constrained';
     else label=`● ${fmt(def.rate*(1+0.25*(n.level-1)))}/${def.output==='data'?'s data':'s'}`;
     const a=document.querySelector(`[data-node-rate="${n.id}"]`),b=document.querySelector(`[data-node-stock="${n.id}"]`);
-    if(a)a.textContent=label;if(b)b.textContent=`${fmt(amount)} buffered`;
+    if(a)a.textContent=label;
+    if(b)b.textContent=n.kind==='market'?`${fmt(amount)} stored · ${state.autoSell.metal?'metal auto-sell ON':'manual sales'}`:`${fmt(amount)} buffered`;
   }
   $('#network-summary').textContent=`${state.nodes.length} facilities · ${state.edges.length} links`;
 }
@@ -118,7 +126,7 @@ function renderInspector(){
   const routes=state.edges.filter(e=>e.from===node.id||e.to===node.id).map(e=>{
     const other=byId(e.from===node.id?e.to:e.from);return `<div class="route-row"><span>${e.from===node.id?'→':'←'} ${safe(other?nodeDef(other).name:'Unknown')} <small>${safe(e.resource)}</small></span><button data-action="unlink" data-id="${e.id}" title="Disconnect">×</button></div>`;
   }).join('')||'<p class="muted tiny">No connections yet</p>';
-  area.innerHTML=`<div class="card inspector-card"><div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output|| (def.power?`${def.power} power`:'Trade')}</strong></div>
+  area.innerHTML=`<div class="card inspector-card"><div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output|| (def.power?`${def.power} power`:'None · receives goods')}</strong></div>
     <div class="inspector-actions"><button data-action="upgrade" data-id="${node.id}" ${state.credits>=upgrade&&node.level<20?'':'disabled'}>↑ Upgrade · ${money(upgrade)}</button><button data-action="toggle" data-id="${node.id}">${node.enabled?'Pause':'Resume'}</button><button class="danger" data-action="demolish" data-id="${node.id}">Recycle</button></div>
     <h3>Local inventory <small>${fmt(capacity(state,node))} cap per item</small></h3>${stock}<h3>Connections</h3>${routes}<p class="tiny muted">Ports: blue-green = material; gold = power. Select an output then a matching input to connect.</p></div>`;
 }
@@ -196,7 +204,7 @@ function renderGuidance(){
   if(!active){card.hidden=true;return;}
   card.hidden=false;
   const progress=Math.round(((state.tutorialStep||0)/(TUTORIAL_STEPS.length-1))*100);
-  card.innerHTML=`<div class="guide-kicker">INTERACTIVE TUTORIAL <span>STEP ${Math.min(7,(state.tutorialStep||0)+1)} OF 7</span></div><div class="guide-progress"><span style="width:${progress}%"></span></div><h2>${safe(step.title)}</h2><p>${safe(step.text)}</p><p class="guide-tip">💡 ${safe(step.hint)}</p><div class="guide-buttons">${step.done?'<button class="primary" id="guide-finish">Open the full game</button>':step.source?'<button id="guide-focus">⌖ Find highlighted port</button>':''}<button id="guide-skip" class="subtle">${practiceSnapshot?'Exit practice':'Skip tutorial'}</button></div>`;
+  card.innerHTML=`<div class="guide-kicker">INTERACTIVE TUTORIAL <span>STEP ${Math.min(TUTORIAL_STEPS.length,(state.tutorialStep||0)+1)} OF ${TUTORIAL_STEPS.length}</span></div><div class="guide-progress"><span style="width:${progress}%"></span></div><h2>${safe(step.title)}</h2><p>${safe(step.text)}</p><p class="guide-tip">💡 ${safe(step.hint)}</p><div class="guide-buttons">${step.done?'<button class="primary" id="guide-finish">Open the full game</button>':step.source?'<button id="guide-focus">⌖ Find highlighted port</button>':''}<button id="guide-skip" class="subtle">${practiceSnapshot?'Exit practice':'Skip tutorial'}</button></div>`;
   const guided=guideTarget();
   document.querySelectorAll('.port').forEach(p=>{
     const isTarget=guided&&p.dataset.node===guided.node.id&&p.dataset.port===guided.target.side&&p.dataset.resource===guided.target.resource;
@@ -295,7 +303,7 @@ function handleAction(button){
   }
   if(action==='sell'){
     const qty=marketQuantity(state,id);
-    if(qty>0){for(const n of state.nodes){if(n.kind==='market')n.buffer[id]=0;}earn(state,qty*price(state,catalog,id));runAction(null,`Sold ${fmt(qty)} ${id}`);}return;
+    if(qty>0){sell(state,catalog,id,qty);runAction(null,`Sold ${fmt(qty)} ${id}`);}return;
   }
   if(action==='research'){runAction(buyResearch(state,catalog,id),'Technology unlocked');return;}
   if(action==='talent'){runAction(buyTalent(state,catalog,id),'Talent improved');return;}
