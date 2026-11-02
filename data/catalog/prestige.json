@@ -1,0 +1,37 @@
+{
+  "meta_start": {
+    "name": "Head Start",
+    "desc": "+100 starting parts per level.",
+    "baseCost": 1,
+    "scale": 1.5,
+    "max": 50
+  },
+  "meta_mult": {
+    "name": "Legacy",
+    "desc": "+10% global production per level.",
+    "baseCost": 2,
+    "scale": 1.6,
+    "max": 50
+  },
+  "meta_slots": {
+    "name": "Real Estate",
+    "desc": "+2 factory slots per level.",
+    "baseCost": 3,
+    "scale": 2.0,
+    "max": 20
+  },
+  "meta_worker": {
+    "name": "HR Dept",
+    "desc": "+1 worker slot per level.",
+    "baseCost": 4,
+    "scale": 2.5,
+    "max": 10
+  },
+  "meta_keep": {
+    "name": "Archives",
+    "desc": "Keep 20% of Data per level on rebuild.",
+    "baseCost": 5,
+    "scale": 2.0,
+    "max": 5
+  }
+}

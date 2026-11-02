@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Factory Idle — Community Starter</title>
+<link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="res"><span class="res-label">Parts</span><span class="res-val" id="r-parts">0</span><span class="res-sub" id="r-parts-rate">+0/s</span></div>
+    <div class="res"><span class="res-label">Data</span><span class="res-val" id="r-data">0</span><span class="res-sub" id="r-data-rate">+0/s</span></div>
+    <div class="res"><span class="res-label">Power</span><span class="res-val" id="r-power">0 / 0</span><span class="res-sub" id="r-power-store">0 stored</span></div>
+    <div class="res"><span class="res-label">Slots</span><span class="res-val" id="r-slots">0 / 24</span></div>
+    <div class="res"><span class="res-label">Blueprints</span><span class="res-val" id="r-bp">0</span></div>
+  </header>
+
+  <nav>
+    <button data-tab="factory" class="active">Factory</button>
+    <button data-tab="research">Research</button>
+    <button data-tab="workers">Workers</button>
+    <button data-tab="prestige">Prestige</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+
+  <main>
+    <section id="tab-factory" class="tab active">
+      <div class="click-panel">
+        <button id="craft-btn" class="craft" data-action="craft">Craft<span class="craft-val" id="craft-val">+1</span></button>
+        <button id="surge-btn" class="surge" data-action="surge" hidden>Surge</button>
+      </div>
+      <div class="buymode-row">
+        <span class="buymode-label">Buy:</span>
+        <button class="buymode active" data-action="buymode" data-id="1">×1</button>
+        <button class="buymode" data-action="buymode" data-id="10">×10</button>
+        <button class="buymode" data-action="buymode" data-id="max">Max</button>
+      </div>
+      <div id="buildings"></div>
+    </section>
+
+    <section id="tab-research" class="tab">
+      <p class="hint">Data is produced by Labs. Each branch draws from the same pool — you likely can't max more than one per run.</p>
+      <div class="branches" id="branches"></div>
+    </section>
+
+    <section id="tab-workers" class="tab">
+      <p class="hint">Workers gain XP while assigned. Each level grants +2% to their specialty.</p>
+      <div class="hire-row" id="hire-row"></div>
+      <div id="workers"></div>
+    </section>
+
+    <section id="tab-prestige" class="tab">
+      <div class="prestige-panel">
+        <h3>Rebuild Factory</h3>
+        <p>Reset your factory to earn <b>Blueprints</b> based on total parts produced this run. Blueprints buy permanent upgrades.</p>
+        <p>Total parts this run: <b id="p-total">0</b></p>
+        <p>Blueprints available: <b id="p-bp">0</b></p>
+        <button data-action="prestige" id="p-btn" disabled>Rebuild</button>
+      </div>
+      <div id="meta-list"></div>
+    </section>
+
+    <section id="tab-settings" class="tab">
+      <div class="settings-panel">
+        <h3>Save / Load</h3>
+        <button data-action="save">Save Now</button>
+        <button data-action="export">Export to Text</button>
+        <button data-action="import">Import from Text</button>
+        <button data-action="export-file">Download JSON Save</button>
+        <button data-action="import-file">Import JSON File</button>
+        <input id="save-file-input" type="file" accept=".json,application/json" hidden>
+        <textarea id="save-text" placeholder="Save JSON will appear here after exporting, or paste one to import..."></textarea>
+        <h3>Stats</h3>
+        <div class="stat-line">Clicks: <b id="s-clicks">0</b></div>
+        <div class="stat-line">Time played: <b id="s-time">0s</b></div>
+        <div class="stat-line">Lifetime parts: <b id="s-lifetime">0</b></div>
+        <div class="stat-line">Prestiges: <b id="s-prestiges">0</b></div>
+        <h3>Danger Zone</h3>
+        <button class="danger" data-action="hard-reset">Hard Reset (wipe everything)</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

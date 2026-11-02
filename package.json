@@ -1,0 +1,12 @@
+{
+  "name": "factory-idle",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Static-site incremental factory management game",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/main.js"
+  },
+  "engines": {"node": ">=20"}
+}

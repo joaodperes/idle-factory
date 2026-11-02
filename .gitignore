@@ -1,0 +1,7 @@
+# Local tools and OS files
+node_modules/
+dist/
+coverage/
+.DS_Store
+Thumbs.db
+*.log
