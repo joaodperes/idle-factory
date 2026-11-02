@@ -1,1 +1,4 @@
-export function researchModifier(state,key){return 0;}
+export const RESEARCH_EFFECTS={"logistics":{"routing":0.5},"market":{"pricing":0.2},"energy":{"powerSavings":0.2},"yield":{"output":0.25},"supply_ai":{"routing":0.2},"solar_cells":{"solarPower":0.5},"robotics":{"speed":0.5},"offline":{"offlinePower":0.5},"contract_network":{"contracts":0.15},"superconductors":{"powerSavings":0.12},"synthesis":{"output":0.12},"analytics":{"pricing":0.12},"quantum":{"routing":0.4},"machine_learning":{"speed":0.2,"labOutput":0.15},"research_acceleration":{"labOutput":0.3},"global_grid":{"solarPower":0.6},"factory_scale":{"slots":4},"frontier":{"labOutput":0.4,"licenseYield":0.2}};
+export function researchModifier(state,key){return Object.entries(RESEARCH_EFFECTS).reduce((sum,[id,mods])=>sum+(state.research?.[id]===true?(mods[key]||0):0),0);}
+export function researchLicensingCost(state){return 80+25*Math.max(0,state.researchLicenses||0);}
+export function researchLicensingReward(state){return Math.round((450+100*Math.max(0,state.researchLicenses||0))*(1+researchModifier(state,'licenseYield')));}
