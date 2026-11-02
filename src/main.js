@@ -4,6 +4,7 @@ import {fmt,timeLabel} from './core/format.js';
 import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,earn} from './core/engine.js';
 import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility} from './core/graph.js';
 import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,buyTalent,buyInvestment,resetCompany,saveLayout,loadLayout,setSpecialization} from './core/actions.js';
+import {TUTORIAL_STEPS,advanceTutorial,tutorialPort} from './core/tutorial.js';
 
 const catalog=await loadCatalog();
 const loaded=loadLocal(catalog);
@@ -12,18 +13,22 @@ let activeTab='factory';
 let pending=null;
 let drag=null;
 let notifyTimer=null;
+let practiceSnapshot=null; // Replays run in a disposable practice factory; player saves are untouched.
+const inTutorial=()=>!state.onboarding;
 const $=selector=>document.querySelector(selector);
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nodeDef=n=>catalog.facilities[n.kind];
 const money=n=>`${fmt(n)} cr`;
 const byId=id=>state.nodes.find(n=>n.id===id);
 const alertToast=(message,bad=false)=>{const t=$('#toast');t.textContent=message;t.classList.toggle('error',bad);t.classList.add('visible');clearTimeout(notifyTimer);notifyTimer=setTimeout(()=>t.classList.remove('visible'),3000);};
-const runAction=(error,success)=>{if(error)alertToast(error,true);else{if(success)alertToast(success);refresh();saveLocal();}};
+const runAction=(error,success)=>{if(error)alertToast(error,true);else{if(success)alertToast(success);advanceTutorial(state);refresh();saveLocal();}};
 function saveLocal(){
+  if(practiceSnapshot)return true;
   try{localStorage.setItem(SAVE_KEY,serializeSave(state));$('#save-status').textContent=`Saved locally at ${new Date().toLocaleTimeString()}`;return true;}
   catch(err){alertToast('Local save failed. Download a JSON backup.',true);return false;}
 }
 function setTab(tab){
+  if(inTutorial()&&tab!=='factory')return;
   activeTab=tab;
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${tab}`));
@@ -31,15 +36,16 @@ function setTab(tab){
 }
 function renderMetrics(){
   const g=gridStatus(state,catalog);
-  const values=[['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],['RESEARCH',fmt(state.data)],['POWER',`${fmt(g.supply)} / ${fmt(g.demand)}`],['CAPACITY',`${usedSlots(state,catalog)} / ${totalSlots(state)}`],['ANGELS',fmt(state.angels)]];
+  const values=inTutorial()? [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],['POWER',`${fmt(g.supply)} / ${fmt(g.demand)}`]] : [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],['RESEARCH',fmt(state.data)],['POWER',`${fmt(g.supply)} / ${fmt(g.demand)}`],['CAPACITY',`${usedSlots(state,catalog)} / ${totalSlots(state)}`],['ANGELS',fmt(state.angels)]];
   $('#metrics').innerHTML=values.map(([name,value])=>`<div class="metric"><small>${name}</small><strong>${value}</strong></div>`).join('');
 }
 function renderFacilities(){
-  const list=Object.entries(catalog.facilities).map(([kind,def])=>{
+  const step=TUTORIAL_STEPS[state.tutorialStep||0];
+  const list=Object.entries(catalog.facilities).filter(([kind])=>!inTutorial() || kind===step?.build).map(([kind,def])=>{
     const unlocked=state.runRevenue>=def.unlock;
     const cost=nodeCost(kind,state,catalog);
     const allowed=unlocked&&state.credits>=cost&&usedSlots(state,catalog)+def.slots<=totalSlots(state);
-    return `<div class="build-item ${!unlocked?'locked':''}"><span class="build-icon" style="--accent:${def.color}">${def.icon}</span><div class="build-copy"><strong>${safe(def.name)}</strong><small>${unlocked?`${def.slots} slots · ${money(cost)}`:`Unlock ${money(def.unlock)} revenue`}</small></div><button data-action="build" data-kind="${kind}" ${allowed?'':'disabled'} title="${safe(def.description)}">＋</button></div>`;
+    return `<div class="build-item ${!unlocked?'locked':''} ${inTutorial()&&kind===step?.build?'tutorial-highlight':''}"><span class="build-icon" style="--accent:${def.color}">${def.icon}</span><div class="build-copy"><strong>${safe(def.name)}</strong><small>${unlocked?`${def.slots} slots · ${money(cost)}`:`Unlock ${money(def.unlock)} revenue`}</small></div><button data-action="build" data-kind="${kind}" ${allowed?'':'disabled'} title="${safe(def.description)}">＋</button></div>`;
   }).join('');
   $('#facility-list').innerHTML=list;
 }
@@ -57,19 +63,29 @@ function nodeMarkup(node){
     <button class="node-select" data-action="select" data-id="${node.id}" aria-label="Inspect ${safe(def.name)}">Inspect ↗</button>
   </div>`;
 }
+/** Read actual port centers, not guessed node offsets. Works with any port count, node size and zoom/scroll. */
+function portCenter(nodeId,side,resource){
+  const node=document.querySelector(`[data-node-id="${nodeId}"]`);
+  if(!node)return null;
+  const port=[...node.querySelectorAll('.port')].find(p=>p.dataset.port===side && (p.dataset.resource===resource||(side==='in'&&p.dataset.resource==='any'&&resource!=='power')));
+  if(!port)return null;
+  const rect=port.getBoundingClientRect(),origin=$('#editor-world').getBoundingClientRect();
+  return {x:rect.left+rect.width/2-origin.left,y:rect.top+rect.height/2-origin.top};
+}
 function drawLinks(){
   const svg=$('#links');
   const curves=state.edges.map(edge=>{
     const from=byId(edge.from),to=byId(edge.to);if(!from||!to)return '';
-    const power=edge.resource==='power';
-    const x1=from.x+208,y1=from.y+(power?134:106),x2=to.x-9,y2=to.y+(power?134:106);
-    const dx=Math.max(65,Math.abs(x2-x1)*0.48);
-    const d=`M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
-    const c=power?'#e1b564':(catalog.resources[edge.resource]?.color||'#63b9b7');
-    return `<path d="${d}" class="edge-back"/><path d="${d}" stroke="${c}" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="${d}" class="edge-hit" data-edge="${edge.id}" aria-label="Remove ${edge.resource} connection"><title>${edge.resource}: ${nodeDef(from).name} → ${nodeDef(to).name} (click to disconnect)</title></path>`;
+    const a=portCenter(from.id,'out',edge.resource),b=portCenter(to.id,'in',edge.resource);
+    if(!a||!b)return '';
+    const dx=Math.max(55,Math.abs(b.x-a.x)*0.42);
+    const d=`M${a.x},${a.y} C${a.x+dx},${a.y} ${b.x-dx},${b.y} ${b.x},${b.y}`;
+    const color=edge.resource==='power'?'#e1b564':(catalog.resources[edge.resource]?.color||'#63b9b7');
+    return `<path d="${d}" class="edge-back"/><path d="${d}" stroke="${color}" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="${d}" class="edge-hit" data-edge="${edge.id}" aria-label="Remove ${edge.resource} connection"><title>${edge.resource}: ${nodeDef(from).name} → ${nodeDef(to).name} (click to disconnect)</title></path>`;
   }).join('');
   svg.innerHTML=curves;
 }
+
 function renderGraph(){
   $('#nodes').innerHTML=state.nodes.map(nodeMarkup).join('');
   drawLinks();
@@ -94,6 +110,7 @@ function updateNodeStats(){
 }
 function renderInspector(){
   const area=$('#inspector');const node=byId(state.selectedNode);
+  if(inTutorial()){area.innerHTML='';return;}
   if(!node){area.innerHTML='<div class="card"><h2>Facility inspector</h2><p class="muted">Select a facility to inspect it.</p></div>';return;}
   const def=nodeDef(node),stock=Object.entries(node.buffer).filter(([,q])=>q>0.005).map(([r,q])=>`<div class="inventory-row"><span>${safe(catalog.resources[r]?.name||r)}</span><strong>${fmt(q)}</strong></div>`).join('')||'<p class="muted tiny">No materials buffered</p>';
   const inputs=Object.keys(def.inputs||{}).map(r=>`${catalog.resources[r].name}: ${fmt(def.inputs[r])}/s`).join(' · ');
@@ -154,6 +171,60 @@ function renderInvestors(){
 function renderStats(){
   $('#stats').innerHTML=[['Management level',managerLevel(state)],['Lifetime revenue',money(state.lifetimeRevenue)],['Total contracts',state.contractsFilled],['Successful investments',state.stats.resets],['Lifetime play time',timeLabel(state.elapsed)],['Saved factory templates',state.layouts.length]].map(([k,v])=>`<div class="stat-pair"><span>${k}</span><strong>${v}</strong></div>`).join('');
 }
+function guideTarget(){
+  const target=tutorialPort(state,pending);
+  if(!target)return null;
+  const node=state.nodes.find(n=>n.kind===target.kind);
+  if(!node)return null;
+  return {node, target};
+}
+function focusGuidedTarget(){
+  const match=guideTarget();if(!match)return;
+  const scroll=$('#editor-scroll');
+  scroll.scrollTo({left:Math.max(0,match.node.x-scroll.clientWidth*0.34),top:Math.max(0,match.node.y-100),behavior:'smooth'});
+}
+function renderGuidance(){
+  const active=inTutorial(),card=$('#tutorial-panel');
+  document.body.classList.toggle('guided-mode',active);
+  document.querySelectorAll('.tabs button').forEach(b=>{b.hidden=active&&b.dataset.tab!=='factory';});
+  const step=TUTORIAL_STEPS[state.tutorialStep||0];
+  $('#overview-card').hidden=active;
+  $('#blueprints-card').hidden=active;
+  $('#layout-save').hidden=active;
+  $('#inspector').hidden=active;
+  $('#facility-card').hidden=active&&!step.build;
+  if(!active){card.hidden=true;return;}
+  card.hidden=false;
+  const progress=Math.round(((state.tutorialStep||0)/(TUTORIAL_STEPS.length-1))*100);
+  card.innerHTML=`<div class="guide-kicker">INTERACTIVE TUTORIAL <span>STEP ${Math.min(7,(state.tutorialStep||0)+1)} OF 7</span></div><div class="guide-progress"><span style="width:${progress}%"></span></div><h2>${safe(step.title)}</h2><p>${safe(step.text)}</p><p class="guide-tip">💡 ${safe(step.hint)}</p><div class="guide-buttons">${step.done?'<button class="primary" id="guide-finish">Open the full game</button>':step.source?'<button id="guide-focus">⌖ Find highlighted port</button>':''}<button id="guide-skip" class="subtle">${practiceSnapshot?'Exit practice':'Skip tutorial'}</button></div>`;
+  const guided=guideTarget();
+  document.querySelectorAll('.port').forEach(p=>{
+    const isTarget=guided&&p.dataset.node===guided.node.id&&p.dataset.port===guided.target.side&&p.dataset.resource===guided.target.resource;
+    p.classList.toggle('tutorial-focus',!!isTarget);
+    p.dataset.guideLabel=isTarget?(guided.target.side==='out'?'START HERE':'CONNECT HERE'):'';
+  });
+  if(step.source){
+    $('#editor-hint').textContent=pending?'Now select the highlighted input port.':'Click the highlighted output port to start a connection.';
+  }else{$('#editor-hint').textContent=step.done?'Training complete!':'Follow the highlighted tutorial instruction on the left.';}
+}
+function finishTutorial(){
+  pending=null;
+  if(practiceSnapshot){state=practiceSnapshot;practiceSnapshot=null;}
+  else{state.onboarding=true;state.tutorialStep=TUTORIAL_STEPS.length-1;}
+  $('#help-modal').classList.add('hidden');
+  refresh();saveLocal();
+  alertToast('Full factory unlocked. Enjoy building!');
+}
+function startPractice(){
+  $('#help-modal').classList.add('hidden');
+  if(!practiceSnapshot)practiceSnapshot=state;
+  state=defaultState();
+  state.lastSeen=Date.now();
+  pending=null;activeTab='factory';
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab==='factory'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='panel-factory'));
+  refresh();$('#editor-scroll').scrollTo(0,0);
+}
 function refresh(){
   renderMetrics();
   if(activeTab==='factory'){renderFacilities();renderGraph();renderInspector();renderOverview();renderLayouts();}
@@ -162,6 +233,7 @@ function refresh(){
   if(activeTab==='research')renderResearch();
   if(activeTab==='investors')renderInvestors();
   if(activeTab==='settings')renderStats();
+  renderGuidance();
 }
 function liveRefresh(){
   renderMetrics();
@@ -171,6 +243,7 @@ function liveRefresh(){
   if(activeTab==='research')renderResearch();
   if(activeTab==='investors')renderInvestors();
   if(activeTab==='settings')renderStats();
+  if(inTutorial())renderGuidance();
 }
 function selection(id){
   state.selectedNode=id;
@@ -179,17 +252,20 @@ function selection(id){
 }
 function handlePort(button){
   const {node,port,resource}=button.dataset;
+  const required=tutorialPort(state,pending);
+  if(required){const correct=byId(node)?.kind===required.kind&&port===required.side&&resource===required.resource;
+    if(!correct){alertToast('Follow the glowing port for this tutorial step.',true);return;}}
   if(port==='out'){
     pending={from:node,resource};
     $('#editor-hint').textContent=`Linking ${resource} from ${nodeDef(byId(node)).name} — select an input port.`;
     document.querySelectorAll('.port').forEach(el=>el.classList.toggle('pending',el===button));
-    return;
+    renderGuidance();focusGuidedTarget();return;
   }
   if(!pending){alertToast('Choose a source output port first.',true);return;}
   const expected=resource==='any'?pending.resource:resource;
   if(expected!==pending.resource){alertToast('Incompatible ports. Match resource type to input.',true);return;}
   const error=addEdge(state,catalog,pending.from,node,pending.resource);
-  pending=null;$('#editor-hint').textContent='Choose an output port, then a compatible input port to connect.';
+  pending=null;
   runAction(error,'Connection established');
 }
 function userConfirm(message){return window.confirm(message);}
@@ -197,11 +273,14 @@ function handleAction(button){
   const {action,id,kind}=button.dataset;
   if(action==='select'){selection(id);return;}
   if(action==='build'){
+    if(inTutorial()&&TUTORIAL_STEPS[state.tutorialStep]?.build!==kind)return;
     const scroll=$('#editor-scroll');
     const idx=state.nodes.length;
-    const x=Math.min(2250,Math.round(scroll.scrollLeft+200+(idx%3)*45));
-    const y=Math.min(1400,Math.round(scroll.scrollTop+200+(idx%5)*50));
-    runAction(addFacility(state,catalog,kind,x,y),'Facility commissioned');return;
+    const placement=inTutorial()?({smelter:{x:650,y:125},market:{x:960,y:125}}[kind]):null;
+    const x=placement?.x??Math.min(2250,Math.round(scroll.scrollLeft+200+(idx%3)*45));
+    const y=placement?.y??Math.min(1400,Math.round(scroll.scrollTop+200+(idx%5)*50));
+    runAction(addFacility(state,catalog,kind,x,y),'Facility commissioned');
+    if(inTutorial())focusGuidedTarget();return;
   }
   if(action==='upgrade'){runAction(upgradeFacility(state,catalog,id),'Machine upgraded');return;}
   if(action==='toggle'){const node=byId(id);if(node){node.enabled=!node.enabled;refresh();saveLocal();}return;}
@@ -228,6 +307,9 @@ function handleAction(button){
   if(action==='layout-delete'){state.layouts.splice(Number(id),1);refresh();saveLocal();return;}
 }
 document.addEventListener('click',event=>{
+  if(event.target.closest('#guide-finish')){finishTutorial();return;}
+  if(event.target.closest('#guide-skip')){finishTutorial();return;}
+  if(event.target.closest('#guide-focus')){focusGuidedTarget();return;}
   const port=event.target.closest('[data-port]');if(port){handlePort(port);return;}
   const action=event.target.closest('[data-action]');if(action){handleAction(action);return;}
   const edge=event.target.closest('[data-edge]');if(edge){state.edges=state.edges.filter(e=>e.id!==edge.dataset.edge);runAction(null,'Link disconnected');return;}
@@ -283,25 +365,29 @@ $('#reset-btn').addEventListener('click',()=>{
   state=defaultState();saveLocal();setTab('factory');alertToast('Progress erased');
 });
 const openHelp=()=>$('#help-modal').classList.remove('hidden');
-const closeHelp=()=>{$('#help-modal').classList.add('hidden');state.onboarding=true;saveLocal();};
+const closeHelp=()=>$('#help-modal').classList.add('hidden');
 $('#help-btn').addEventListener('click',openHelp);
 $('#close-help').addEventListener('click',closeHelp);
-$('#start-game').addEventListener('click',closeHelp);
+$('#start-game').addEventListener('click',()=>{if(inTutorial()){closeHelp();focusGuidedTarget();}else startPractice();});
 $('#help-modal').addEventListener('click',e=>{if(e.target.id==='help-modal')closeHelp();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){pending=null;$('#editor-hint').textContent='Choose an output port, then a compatible input port to connect.';document.querySelectorAll('.port.pending').forEach(el=>el.classList.remove('pending'));if(!$('#help-modal').classList.contains('hidden'))closeHelp();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){pending=null;document.querySelectorAll('.port.pending').forEach(el=>el.classList.remove('pending'));if(!$('#help-modal').classList.contains('hidden'))closeHelp();renderGuidance();}});
 
 if(loaded.migrated)alertToast('Previous save detected: converted to Idle Factory v1.0');
 const away=Math.max(0,Math.min(8*3600,(Date.now()-state.lastSeen)/1000));
 if(away>=60){simulate(state,catalog,away,{offline:true});alertToast(`Offline operations: ${timeLabel(away)} at ${state.research.offline?'100%':'50%'} efficiency`);}
 refresh();saveLocal();
-if(!state.onboarding)openHelp();
+if(inTutorial())advanceTutorial(state);
 let lastTick=Date.now();
 setInterval(()=>{
   const now=Date.now();const elapsed=Math.max(0,(now-lastTick)/1000);lastTick=now;
   if(elapsed>60)simulate(state,catalog,Math.min(8*3600,elapsed),{offline:true});
   else if(elapsed>0)simulate(state,catalog,elapsed);
-  liveRefresh();
+  if(advanceTutorial(state)){refresh();if(inTutorial())focusGuidedTarget();}
+  else liveRefresh();
 },1000);
 setInterval(saveLocal,10000);
 window.addEventListener('pagehide',saveLocal);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveLocal();});
+
+window.addEventListener('resize',drawLinks);
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(drawLinks).observe($('#editor-world'));

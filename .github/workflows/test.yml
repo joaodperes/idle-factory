@@ -1,6 +1,9 @@
 name: Test Idle Factory
 on:
+  push:
+    branches: [dev]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read

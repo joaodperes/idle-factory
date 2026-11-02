@@ -11,7 +11,7 @@
 <body>
 <div id="app">
   <header class="topbar">
-    <div class="brand"><span class="logo">▦</span><div><strong>Idle Factory</strong><small>INDUSTRIAL SIMULATOR <span class="version">v1.0</span></small></div></div>
+    <div class="brand"><span class="logo">▦</span><div><strong>Idle Factory</strong><small>INDUSTRIAL SIMULATOR <span class="version">v1.1-dev</span></small></div></div>
     <div class="metrics" id="metrics"></div>
     <button class="icon-button" id="help-btn" title="How to play" aria-label="Help">?</button>
   </header>
@@ -28,9 +28,10 @@
       <div class="section-title"><div><h1>Production network</h1><p>Connect material outputs to compatible inputs, and link machines to your power grid.</p></div><div class="section-actions"><button id="center-btn">⌖ Reset view</button><button id="layout-save">Save blueprint</button></div></div>
       <div class="factory-grid">
         <aside class="sidebar">
-          <div class="card"><h2>Build facilities</h2><div id="facility-list"></div></div>
-          <div class="card"><h2>Production overview</h2><div id="overview"></div></div>
-          <div class="card"><h2>Saved blueprints</h2><p class="muted tiny">Rebuild a complete saved layout, paying for its facilities. Existing machines are recycled for partial credit.</p><div id="layouts"></div></div>
+          <div id="tutorial-panel" class="card guide-card" hidden></div>
+          <div id="facility-card" class="card"><h2>Build facilities</h2><div id="facility-list"></div></div>
+          <div id="overview-card" class="card"><h2>Production overview</h2><div id="overview"></div></div>
+          <div id="blueprints-card" class="card"><h2>Saved blueprints</h2><p class="muted tiny">Rebuild a complete saved layout, paying for its facilities. Existing machines are recycled for partial credit.</p><div id="layouts"></div></div>
         </aside>
         <div class="editor-wrap">
           <div class="editor-toolbar"><span id="editor-hint">Choose an output port, then a compatible input port to connect.</span><span id="network-summary">Network live</span></div>
@@ -49,7 +50,7 @@
     <section class="panel" id="panel-settings"><div class="section-title"><div><h1>Game settings</h1><p>Progress lives in your browser. Export a JSON backup to move between devices or browsers.</p></div></div><div class="two-col"><div class="card"><h2>Save management</h2><p class="muted">Automatic local saves every 10 seconds and when leaving the page. Storage may be cleared by your browser.</p><div class="button-row"><button id="save-btn">Save now</button><button id="export-btn" class="primary">↓ Download JSON</button><button id="import-btn">↑ Import JSON</button><input id="import-file" type="file" accept=".json,application/json" hidden></div><p id="save-status" class="muted tiny"></p></div><div class="card"><h2>Lifetime statistics</h2><div id="stats"></div><h2>Danger zone</h2><button id="reset-btn" class="danger">Erase all progress</button></div></div></section>
   </main>
 </div>
-<div class="modal-overlay hidden" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title"><div class="modal"><button id="close-help" class="modal-close" aria-label="Close">×</button><div class="eyebrow">THE INDUSTRIAL PLAYBOOK</div><h2 id="help-title">Welcome to Idle Factory</h2><p>Build production chains by connecting machines. A working line needs <strong>power</strong> (gold connectors) and <strong>materials</strong> (blue-green connectors).</p><ol><li>Your starting factory turns ore into metal and automatically sells it. The trade terminal generates credits.</li><li>Buy a press, connect smelter → press and power → press, then press → trade terminal to start selling parts.</li><li>Disable auto-sell at the market to reserve goods for contract orders.</li><li>As revenue increases, unlock circuits, assembly, research and management talents.</li><li>Save your favorite layouts, then reset with investors to build a more efficient company.</li></ol><button id="start-game" class="primary">Start production</button></div></div>
+<div class="modal-overlay hidden" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title"><div class="modal"><button id="close-help" class="modal-close" aria-label="Close">×</button><div class="eyebrow">HANDS-ON TRAINING</div><h2 id="help-title">Learn by running a factory</h2><p>Rather than read instructions, you'll build a real ore-to-metal production chain, one step at a time. The game highlights the next clickable port or facility.</p><p class="muted">If you already have a factory, the walkthrough uses a temporary practice factory. Exiting returns you to your original progress without replacing your save.</p><button id="start-game" class="primary">Start guided walkthrough</button></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script type="module" src="./src/main.js"></script>
 </body>

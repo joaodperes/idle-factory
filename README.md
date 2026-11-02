@@ -1,62 +1,75 @@
-# Idle Factory v1.0
+# Idle Factory
 
-**Idle Factory** is a browser-only industrial strategy game. Design production chains on a node diagram, route goods, connect local power grids, fulfill commercial contracts, earn management talents and rebuild with angel investors.
+An offline-first factory planning game. Connect real production machines, balance local power networks, sell finished goods, research improvements, and grow your industrial company across investor resets. All game data comes from versioned JSON catalogs; there is no backend.
 
-**Play:** [joaodperes.github.io/idle-factory/](https://joaodperes.github.io/idle-factory/) (after GitHub Pages is enabled for the repository).
+## Branches and release process
 
-## Gameplay
+- **`main`** is the production release. Only pushes to `main` run the GitHub Pages deployment workflow (`.github/workflows/deploy.yml`).
+- **`dev`** is the integration and playtesting branch. Pushing to `dev` runs validation tests, **not a GitHub Pages deployment** (`.github/workflows/test.yml`).
+- Feature branches can branch off `dev`; merge them back into `dev`, test, and open a pull request from `dev` to `main` only when ready to release.
+- You can preview `dev` locally without publishing or affecting the production game. Browser saves at `localhost` are separate from saves at `joaodperes.github.io` because they're different origins.
 
-1. Your starter network produces ore → metal and automatically sells metal at its trade terminal. Revenue is your building currency.
-2. Click `+` to add facilities. Click an **output port** then a matching **input port** to connect them. Gold ports form the power grid; teal ports transport goods. Drag headers to arrange the diagram and click links to delete them.
-3. Each edge moves a finite quantity per second. Machines need both raw materials and power from their connected grid. Inspect local buffers to diagnose bottlenecks.
-4. Deliver contracts using goods at market terminals, or sell goods for continuously fluctuating market prices. Toggle metal auto-sale **off** to accumulate metal for your first contract.
-5. Earn XP and invest in Industrial Engineer, Automation Architect or Commercial Strategist talent paths. Only the selected path's passive bonuses are active; talent allocations persist.
-6. Research new process improvements with data produced by device-fed laboratories. Sell and rebuild your company to earn angel investors, buy permanent upgrades and reuse a saved factory blueprint.
+## Test a development build locally
 
-## Run & test
+Requires Node.js 20+ and Git.
 
-No third-party dependencies or build tooling are needed. This is a native ES-module app with an SVG/DOM editor.
+```sh
+git clone https://github.com/joaodperes/idle-factory.git
+cd idle-factory
+git switch dev
+npm run dev
+```
 
-```bash
-python3 -m http.server 8000
-# visit http://localhost:8000
+Open **http://127.0.0.1:4173/** in your browser. No `npm install` or paid dependencies are needed. The local server serves the same ES modules, styles, and JSON catalogs as GitHub Pages, with caching disabled. You can choose another port with `npm run dev -- --port 4180`.
+
+Run the automated checks before merging:
+
+```sh
 npm test
 npm run check
 ```
 
-Do not run the game with `file://`; JSON catalogs are fetched over HTTP. Node.js 20+ is recommended for tests.
+The source files can be edited while the server runs; reload the browser to pick up edits. For a completely clean first-run test, use a private window on the local preview or delete only the local preview's site data. **Do not erase production browser data**; export a JSON save first if you intend to reset your hosted game.
 
-## GitHub Pages
+## New-player experience (development branch)
 
-Go to **Settings → Pages → Build and deployment → Source: GitHub Actions**. The included `.github/workflows/deploy.yml` validates and publishes the root folder after every push to `main`. No secrets, server, or database are required.
+A fresh save begins with just a Power Station, an Ore Extractor and sufficient starting credits to complete a seven-step guided factory setup. The walkthrough waits for each actual gameplay action: power the extractor, buy a smelter, send ore, power the smelter, buy a trade terminal, connect metal and observe a first sale. Tutorial controls highlight exactly the next port or build button, with a focus button to navigate the canvas. Other tabs and advanced panels appear on completion (or if the player skips).
 
-## Save and privacy
+Already have a factory? Click **? → Start guided walkthrough** to practice in a temporary factory; the original saved factory is restored when you exit. In-progress and imported v3 saves remain compatible. A company prestige reset starts with a working basic line rather than forcing tutorial replay.
 
-- The browser saves automatically in `localStorage` under `idle-factory-save-v3` every 10 seconds, on page hide, and after player actions.
-- **Settings → Download JSON** exports a portable save. **Import JSON** loads a validated save; make a backup first. Import accepts v2 starter saves as a one-time migration. The original `factory-idle-v2` localStorage entry is not deleted.
-- When loading, the game simulates up to **8 hours** of offline progress at 50% speed (or 100% with Autonomous Operations research). Power, stock and logistics limits remain enforced.
-- Clearing browser site data or changing device/hostname will not transfer saves. No user information is sent to a server.
+The link renderer uses live DOM measurements of input and output port centers, not approximate pixel offsets. Endpoints remain aligned when a node is dragged, resized, or scrolled.
 
-## Files
+## Game mechanics
+
+- **Factory:** graph of machines with typed material and power ports, throughput limits, input and output buffers and isolated electrical networks.
+- **Contracts and market:** sell or reserve goods, fulfill orders, earn credits, and react to changing prices.
+- **Management:** select an Industrial Engineer, Automation Architect or Commercial Strategist specialization and purchase talents as XP increases.
+- **Research and investors:** unlock research through a working laboratory; reset the company for lasting angel-investor upgrades and reusable paid factory blueprints.
+- **Saves:** browser localStorage under `idle-factory-save-v3`, plus portable, versioned JSON exports and imports. No account or cross-device sync.
+
+## Project layout
 
 ```text
-index.html                    Game UI
-src/main.js                   Rendering, input events, storage wiring
-src/styles.css                Responsive industrial-theme interface
-src/core/engine.js            Headless factory simulation and economics
-src/core/graph.js             Construction, connections and capacity
-src/core/actions.js           Upgrades, talents, research, resets, layouts
-src/core/state.js             Save validation and migration
-src/core/catalog.js           Static JSON data loading
-src/core/format.js            Number/time formatting
-data/catalog/*.json           Facilities, resources, research, talents, contracts, investments
-.github/workflows/            Automated Node tests and Pages deployment
-tests/                        Deterministic gameplay and save tests
+index.html                     Browser UI
+src/main.js                    Game rendering, input and onboarding UI
+src/styles.css                 App styling
+src/core/tutorial.js           Testable guided progression
+src/core/engine.js             Deterministic economy and production
+src/core/graph.js              Facility and connection operations
+src/core/actions.js            Investments, prestige, research, layouts
+src/core/state.js              Versioned saves and starter factories
+src/core/catalog.js            JSON catalog loader
+data/catalog/*.json            Game definitions and balance
+scripts/dev-server.mjs         Dependency-free local HTTP preview
+tests/                         Automated simulation / tutorial tests
+.github/workflows/             Separate dev validation and main deployment
 ```
 
-## Design constraints
+## Hosted production
 
-This is intentionally a **compact, self-contained 1.0**, not a heavyweight spatial logistics simulator. Power shares supply inside each connected power network. Material links have bounded throughput; each facility has bounded inventories. Contracts and prices encourage different products and layouts. Power and material links can be disconnected or rearranged at any time. Blueprints are planning templates, not free machines: applying one recycles the previous layout and purchases the target layout using available credits.
+[Play the production version](https://joaodperes.github.io/idle-factory/) · [Source repository](https://github.com/joaodperes/idle-factory)
+
+GitHub Pages uses **Settings → Pages → Build and deployment → Source: GitHub Actions**, and deploys the `main` branch only. The `dev` branch is deliberately **not deployed**.
 
 ## License
 

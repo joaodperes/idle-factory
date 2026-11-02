@@ -2,40 +2,53 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {defaultState,sanitizeSave} from '../src/core/state.js';
+import {advanceTutorial,TUTORIAL_STEPS,tutorialPort} from '../src/core/tutorial.js';
 import {simulate,gridStatus,marketQuantity,completeContract,prestigeGain,availableTalentPoints,managerLevel} from '../src/core/engine.js';
 import {addFacility,addEdge,usedSlots,totalSlots} from '../src/core/graph.js';
 import {resetCompany,saveLayout,loadLayout,buyInvestment,buyTalent,buyResearch} from '../src/core/actions.js';
 const read=id=>JSON.parse(readFileSync(new URL(`../data/catalog/${id}.json`,import.meta.url),'utf8'));
 const catalog=Object.fromEntries(['facilities','resources','talents','research','investments','contracts'].map(id=>[id,read(id)]));
+function workingFactory(){
+ const s=defaultState();
+ assert.equal(addEdge(s,catalog,'n1','n2','power'),null);
+ assert.equal(addFacility(s,catalog,'smelter',650,125),null);
+ const smelter=s.selectedNode;
+ assert.equal(addEdge(s,catalog,'n2',smelter,'ore'),null);
+ assert.equal(addEdge(s,catalog,'n1',smelter,'power'),null);
+ assert.equal(addFacility(s,catalog,'market',960,125),null);
+ assert.equal(addEdge(s,catalog,smelter,s.selectedNode,'metal'),null);
+ return s;
+}
 test('starter graph makes and sells actual metal through linked machines',()=>{
- const s=defaultState();simulate(s,catalog,120);
- assert.ok(s.credits>250);assert.ok(s.runRevenue>0);assert.ok(s.nodes.find(n=>n.kind==='smelter').buffer.metal<2);
+ const s=workingFactory();const initial=s.credits;simulate(s,catalog,120);
+ assert.ok(s.credits>initial);assert.ok(s.runRevenue>0);assert.ok(s.nodes.find(n=>n.kind==='smelter').buffer.metal<2);
 });
 test('disconnected grid cannot supply output',()=>{
- const s=defaultState();s.edges=s.edges.filter(e=>e.resource!=='power');simulate(s,catalog,120);
- assert.equal(s.credits,250);assert.equal(s.runRevenue,0);assert.equal(s.nodes.find(n=>n.kind==='mine').buffer.ore||0,0);
+ const s=workingFactory();s.edges=s.edges.filter(e=>e.resource!=='power');const initial=s.credits;simulate(s,catalog,120);
+ assert.equal(s.credits,initial);assert.equal(s.runRevenue,0);assert.equal(s.nodes.find(n=>n.kind==='mine').buffer.ore||0,0);
 });
 test('unlinked material route cannot deliver inputs',()=>{
- const s=defaultState();s.edges=s.edges.filter(e=>e.resource!=='ore');simulate(s,catalog,120);
+ const s=workingFactory();s.edges=s.edges.filter(e=>e.resource!=='ore');simulate(s,catalog,120);
  assert.equal(s.runRevenue,0);assert.ok(s.nodes.find(n=>n.kind==='mine').buffer.ore>0);
 });
 test('power networks are isolated',()=>{
- const s=defaultState();s.edges=s.edges.filter(e=>e.to!=='n3'||e.resource!=='power');
- const grid=gridStatus(s,catalog);assert.equal(grid.efficiency.get('n3'),0);
+ const s=workingFactory();const smelter=s.nodes.find(n=>n.kind==='smelter');s.edges=s.edges.filter(e=>e.to!==smelter.id||e.resource!=='power');
+ const grid=gridStatus(s,catalog);assert.equal(grid.efficiency.get(smelter.id),0);
 });
 test('market autosell can be disabled to fulfill a contract',()=>{
- const s=defaultState();s.autoSell.metal=false;simulate(s,catalog,160);
+ const s=workingFactory();s.autoSell.metal=false;simulate(s,catalog,160);
  assert.ok(marketQuantity(s,'metal')>=25);
  const before=s.credits,stockBefore=marketQuantity(s,'metal');assert.equal(completeContract(s,catalog,'foundations'),null);
  assert.ok(s.credits>=before+260);assert.ok(Math.abs(marketQuantity(s,'metal')-(stockBefore-25))<1e-6);
  assert.match(completeContract(s,catalog,'foundations'),/cooldown/);
 });
 test('construction spends credits and respects unlocks and capacity',()=>{
- const s=defaultState();s.credits=10000;s.runRevenue=10000;
+ const s=workingFactory();s.credits=10000;s.runRevenue=10000;
  assert.equal(addFacility(s,catalog,'press',540,340),null);
  assert.ok(usedSlots(s,catalog)<=totalSlots(s));
- assert.equal(addEdge(s,catalog,'n3',s.selectedNode,'metal'),null);
- assert.match(addEdge(s,catalog,'n3',s.selectedNode,'metal'),/already exists/);
+ const source=s.nodes.find(n=>n.kind==='smelter').id;
+ assert.equal(addEdge(s,catalog,source,s.selectedNode,'metal'),null);
+ assert.match(addEdge(s,catalog,source,s.selectedNode,'metal'),/already exists/);
  assert.match(addEdge(s,catalog,'n2',s.selectedNode,'ore'),/cannot consume/);
 });
 test('talents cost level points, and research needs data',()=>{
@@ -54,7 +67,7 @@ test('investor reset retains permanent upgrades and layouts',()=>{
  assert.ok(r.state.credits>250);
 });
 test('saved layout costs money and restores links without free machines',()=>{
- const s=defaultState();s.credits=10000;s.runRevenue=3000;
+ const s=workingFactory();s.credits=10000;s.runRevenue=3000;
  assert.equal(addFacility(s,catalog,'press',1300,400),null);saveLayout(s,'Expanded');
  const oldIds=new Set(s.nodes.map(n=>n.id));
  assert.equal(loadLayout(s,catalog,0),null);
@@ -72,9 +85,41 @@ test('injected and invalid save data cannot become active game definitions',()=>
  const s=sanitizeSave(JSON.parse(JSON.stringify(raw)),catalog);
  assert.equal(s.nodes.some(n=>n.kind==='unknown'),false);
  assert.equal(s.talents.lean,3);assert.equal(s.nodes[0].buffer.ore,0);
- assert.equal(s.credits,250);
+ assert.equal(s.credits,900);
 });
 test('prestige gain scales with contracts and production',()=>{
  const s=defaultState();assert.equal(prestigeGain(s),0);
  s.runRevenue=10000;s.runContracts=4;assert.ok(prestigeGain(s)>=3);
+});
+
+test('onboarding starts simple and advances only when actual player actions succeed',()=>{
+ const s=defaultState();
+ assert.equal(s.nodes.length,2);assert.equal(s.edges.length,0);assert.equal(s.tutorialStep,0);
+ assert.equal(advanceTutorial(s),false);
+ assert.deepEqual(tutorialPort(s,null),{side:'out',kind:'generator',resource:'power'});
+ assert.equal(addEdge(s,catalog,'n1','n2','power'),null);
+ assert.equal(advanceTutorial(s),true);assert.equal(s.tutorialStep,1);
+ assert.equal(addFacility(s,catalog,'smelter',650,125),null);
+ assert.equal(advanceTutorial(s),true);assert.equal(s.tutorialStep,2);
+ const smelter=s.nodes.find(n=>n.kind==='smelter').id;
+ assert.equal(addEdge(s,catalog,'n2',smelter,'ore'),null);
+ assert.equal(advanceTutorial(s),true);assert.equal(s.tutorialStep,3);
+ assert.equal(addEdge(s,catalog,'n1',smelter,'power'),null);
+ assert.equal(advanceTutorial(s),true);assert.equal(s.tutorialStep,4);
+ assert.equal(addFacility(s,catalog,'market',960,125),null);
+ assert.equal(advanceTutorial(s),true);assert.equal(s.tutorialStep,5);
+ const market=s.nodes.find(n=>n.kind==='market').id;
+ assert.equal(addEdge(s,catalog,smelter,market,'metal'),null);
+ assert.equal(advanceTutorial(s),true);assert.equal(s.tutorialStep,6);
+ assert.equal(advanceTutorial(s),false);
+ simulate(s,catalog,20);assert.ok(s.runRevenue>0);
+ assert.equal(advanceTutorial(s),true);assert.equal(s.tutorialStep,TUTORIAL_STEPS.length-1);
+});
+test('tutorial step and older saves persist without destroying established factories',()=>{
+ const s=defaultState();s.tutorialStep=4;
+ const loaded=sanitizeSave(JSON.parse(JSON.stringify(s)),catalog);
+ assert.equal(loaded.tutorialStep,4);assert.equal(loaded.nodes.length,2);
+ const old={...workingFactory(),onboarding:true};delete old.tutorialStep;
+ const restored=sanitizeSave(JSON.parse(JSON.stringify(old)),catalog);
+ assert.equal(restored.onboarding,true);assert.equal(restored.nodes.length,4);
 });

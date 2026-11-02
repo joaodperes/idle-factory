@@ -7,7 +7,14 @@ const text = (v, fallback = '') => typeof v === 'string' && /^[a-z0-9_-]{1,40}$/
 export function makeNode(id, kind, x, y) { return {id, kind, x, y, level:1, enabled:true, buffer:{}}; }
 export function starterGraph(){
   return {
-    nodes:[makeNode('n1','generator',80,125),makeNode('n2','mine',355,60),makeNode('n3','smelter',650,155),makeNode('n4','market',980,150)],
+    nodes:[makeNode('n1','generator',80,120),makeNode('n2','mine',365,120)],
+    edges:[]
+  };
+}
+/** Established companies receive a running production line on prestige; new players learn from two machines. */
+export function operatingGraph(){
+  return {
+    nodes:[makeNode('n1','generator',80,120),makeNode('n2','mine',365,80),makeNode('n3','smelter',650,130),makeNode('n4','market',960,130)],
     edges:[
       {id:'e1',from:'n1',to:'n2',resource:'power'},
       {id:'e2',from:'n1',to:'n3',resource:'power'},
@@ -18,13 +25,13 @@ export function starterGraph(){
 }
 export function defaultState() {
   return {
-    version:3, credits:250, data:0, angels:0, totalAngels:0,
+    version:3, credits:900, data:0, angels:0, totalAngels:0,
     runRevenue:0, lifetimeRevenue:0, contractsFilled:0, runContracts:0,
     xp:0, elapsed:0, runElapsed:0, lastSeen:Date.now(),
     specialization:'engineer', talents:{}, investments:{}, research:{},
-    nodes:starterGraph().nodes, edges:starterGraph().edges, nextId:5,
-    autoSell:{metal:true}, contractRuns:{}, selectedNode:'n3', layouts:[],
-    stats:{resets:0, clicks:0}, onboarding:false
+    nodes:starterGraph().nodes, edges:starterGraph().edges, nextId:3,
+    autoSell:{metal:true}, contractRuns:{}, selectedNode:'n1', layouts:[],
+    stats:{resets:0, clicks:0}, onboarding:false, tutorialStep:0
   };
 }
 export function sanitizeSave(raw, catalog) {
@@ -64,6 +71,7 @@ export function sanitizeSave(raw, catalog) {
   s.selectedNode=used.has(raw.selectedNode)?raw.selectedNode:s.nodes[0]?.id||null;
   s.stats={resets:integer(asObject(raw.stats).resets),clicks:integer(asObject(raw.stats).clicks)};
   s.onboarding=raw.onboarding===true;
+  s.tutorialStep=integer(raw.tutorialStep,0,7);
   s.layouts=(Array.isArray(raw.layouts)?raw.layouts:[]).slice(0,5).map(layout=>({
     name:typeof layout?.name==='string'?layout.name.slice(0,32):'Saved layout',
     nodes:(Array.isArray(layout?.nodes)?layout.nodes:[]).slice(0,120).filter(n=>catalog.facilities[n.kind]).map(n=>({id:text(n.id),kind:n.kind,x:integer(n.x,0,2400),y:integer(n.y,0,1500)})),
@@ -86,6 +94,7 @@ function migrateV2(old) {
   s.investments.dividends=integer(meta.meta_mult,0,12);
   s.investments.infrastructure=integer(meta.meta_slots,0,12);
   s.stats.resets=integer(asObject(old.stats).prestiges);
+  s.onboarding=true;
   s.lastSeen=number(old.lastSeen,Date.now(),1e15);
   return s;
 }

@@ -1,4 +1,4 @@
-import {defaultState,makeNode} from './state.js';
+import {defaultState,operatingGraph} from './state.js';
 import {addFacility,removeFacility,addEdge,upgradeCost,usedSlots,totalSlots,nodeCost} from './graph.js';
 import {prestigeGain,availableTalentPoints} from './engine.js';
 export {addFacility,removeFacility,addEdge};
@@ -38,7 +38,11 @@ export function resetCompany(state){
   next.lifetimeRevenue=state.lifetimeRevenue;next.contractsFilled=state.contractsFilled;
   next.elapsed=state.elapsed;next.layouts=state.layouts;
   next.stats={...state.stats,resets:state.stats.resets+1};
-  next.onboarding=true;
+  const restored=operatingGraph();
+  next.nodes=restored.nodes;next.edges=restored.edges;next.nextId=5;next.selectedNode='n3';
+  // Prestiged players should immediately earn revenue, not repeat the first-time tutorial.
+  next.credits=250;
+  next.onboarding=true;next.tutorialStep=7;
   next.credits+=300*(state.investments.capital||0)+(state.specialization==='strategist'?200*(state.talents.seed||0):0);
   return {state:next,earned};
 }
