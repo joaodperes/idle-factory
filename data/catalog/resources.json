@@ -1,6 +1,6 @@
 {
   "ore":{"name":"Ore","price":2,"color":"#67b7a8"},
-  "metal":{"name":"Refined Metal","price":7,"color":"#e0a66a"},
+  "metal":{"name":"Refined Metal","price":7,"color":"#e27d48"},
   "parts":{"name":"Components","price":18,"color":"#83a9f5"},
   "circuits":{"name":"Circuits","price":48,"color":"#ae91e7"},
   "devices":{"name":"Devices","price":130,"color":"#59bd94"},
