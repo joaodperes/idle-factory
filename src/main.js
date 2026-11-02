@@ -100,7 +100,7 @@ function drawLinks(){
     const route=routeConnection(a,b,obstacles);
     if(!route.length){
       blockedRoutes++;
-      return `<circle cx="${a.x+15}" cy="${a.y}" r="6" fill="#eb8b97" stroke="#f6d9d9" stroke-width="1.5"><title>Route blocked by another machine. Move machines apart to reveal this connection.</title></circle>`;
+      return `<circle cx="${a.x+15}" cy="${a.y}" r="6" fill="#eb8b97" stroke="#f6d9d9" stroke-width="1.5" style="pointer-events:all"><title>Route blocked by another machine. Move machines apart to reveal this connection.</title></circle>`;
     }
     const d=routePath(route);
     const color=edge.resource==='power'?'#f2db3d':(catalog.resources[edge.resource]?.color||'#63b9b7');
@@ -123,7 +123,7 @@ function updateNodeStats(){
     const activity=productionActivity(n),maxRate=maxProductionRate(state,n,catalog),actual=activity.rate;
     let label,bufferText='';
     if(!n.enabled)label='⏸ Paused';
-    else if(def.power)label=`⚡ +${fmt(def.power*(1+0.2*(n.level-1)))} power generation`;
+    else if(def.power)label=`⚡ +${fmt(def.power*(1+0.5*(n.level-1)))} power generation`;
     else if(n.kind==='market'){
       const sale=marketActivity(n),deliveries=state.edges.filter(e=>e.to===n.id&&e.resource!=='power');
       label=sale.units>0?`✓ Sold ${fmt(sale.units)} · +${money(sale.revenue)}`
@@ -158,10 +158,13 @@ function renderInspector(){
   const def=nodeDef(node),tracked=new Set([...Object.keys(def.inputs||{}),...(def.output&&def.output!=='data'?[def.output]:[]),...Object.entries(node.buffer).filter(([,qty])=>qty>0.005).map(([resource])=>resource)]),stock=[...tracked].map(resource=>`<div class="inventory-row"><span>${safe(catalog.resources[resource]?.name||resource)}${def.output===resource?' (output)':''}</span><strong>${fmt(node.buffer[resource]||0)}</strong></div>`).join('')||'<p class="muted tiny">No materials buffered</p>';
   const inputs=Object.keys(def.inputs||{}).map(r=>`${catalog.resources[r].name}: ${fmt(def.inputs[r])}/s`).join(' · ');
   const upgrade=upgradeCost(node,catalog);
+  const currentPerformance=def.output?maxProductionRate(state,node,catalog):def.power?def.power*(1+0.5*(node.level-1)):capacity(state,node);
+  const nextPerformance=def.output?maxProductionRate(state,{...node,level:node.level+1},catalog):def.power?def.power*(1+0.5*node.level):capacity(state,{...node,level:node.level+1});
+  const performanceUnit=def.output?' units/s':def.power?' power':' storage/item';
   const routes=state.edges.filter(e=>e.from===node.id||e.to===node.id).map(e=>{
     const other=byId(e.from===node.id?e.to:e.from);return `<div class="route-row"><span>${e.from===node.id?'→':'←'} ${safe(other?nodeDef(other).name:'Unknown')} <small>${safe(catalog.resources[e.resource]?.name||(e.resource==='power'?'Power grid':e.resource))}</small></span><button data-action="unlink" data-id="${e.id}" title="Disconnect">×</button></div>`;
   }).join('')||'<p class="muted tiny">No connections yet</p>';
-  area.innerHTML=`<div class="card inspector-card"><div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Facilities of this type</span><strong>${state.nodes.filter(n=>n.kind===node.kind).length} / ${facilityLimit(state,node.kind)}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output?(catalog.resources[def.output]?.name||def.output): (def.power?`${def.power} electricity`:'None · receives goods')}</strong></div>
+  area.innerHTML=`<div class="card inspector-card"><div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Facilities of this type</span><strong>${state.nodes.filter(n=>n.kind===node.kind).length} / ${facilityLimit(state,node.kind)}</strong></div><div class="stat-pair"><span>Upgrade benefit</span><strong>${fmt(currentPerformance)} → ${fmt(nextPerformance)} ${performanceUnit}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output?(catalog.resources[def.output]?.name||def.output): (def.power?`${def.power} electricity`:'None · receives goods')}</strong></div>
     <div class="inspector-actions"><button data-action="upgrade" data-id="${node.id}" ${state.credits>=upgrade&&node.level<20?'':'disabled'}>↑ Upgrade · ${money(upgrade)}</button><button data-action="toggle" data-id="${node.id}">${node.enabled?'Pause':'Resume'}</button><button class="danger" data-action="demolish" data-id="${node.id}">Recycle</button></div>
     <h3>Local inventory <small>${fmt(capacity(state,node))} cap per item</small></h3>${stock}<h3>Connections</h3>${routes}<p class="tiny muted">Material ports move goods. Yellow ports connect machines to a shared electrical grid. Powered machines may relay electricity but cannot generate it.</p></div>`;
 }
