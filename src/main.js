@@ -1,11 +1,12 @@
 import {loadCatalog} from './core/catalog.js';
 import {SAVE_KEY,loadLocal,sanitizeSave,serializeSave,defaultState} from './core/state.js';
 import {fmt,timeLabel} from './core/format.js';
-import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,sell,marketActivity,productionActivity,maxProductionRate} from './core/engine.js';
-import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility,facilityLimit,nextCapacityMilestone} from './core/graph.js';
-import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,buyTalent,buyInvestment,resetCompany,saveLayout,loadLayout,setSpecialization} from './core/actions.js';
+import {simulate,gridStatus,price,marketQuantity,completeContract,contractAvailable,managerLevel,availableTalentPoints,prestigeGain,companyValue,capacity,sell,marketActivity,productionActivity,productionDiagnostics,maxProductionRate} from './core/engine.js';
+import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility,facilityLimit,nextCapacityMilestone,nextCapacityLevel} from './core/graph.js';
+import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,buyTalent,buyInvestment,resetCompany,saveLayout,loadLayout,respecTalents} from './core/actions.js';
 import {TUTORIAL_STEPS,advanceTutorial,tutorialPort} from './core/tutorial.js';
 import {routeConnection,routePath} from './core/router.js';
+import {factoryLevel,nextFactoryLevelXp,talentStatus,pointsEarned,TIER_RULES,talentModifier,TALENT_UNLOCK_LEVEL} from './core/talents.js';
 
 const catalog=await loadCatalog();
 const loaded=loadLocal(catalog);
@@ -38,14 +39,15 @@ function setTab(tab){
   refresh();
 }
 function renderMetrics(){
-  const g=gridStatus(state,catalog);
+  const g=gridStatus(state,catalog),lvl=factoryLevel(state);
   const underpowered=[...g.groups.values()].filter(group=>group.demand>group.supply+0.000001).length;
   const available=Math.max(0,g.supply-g.demand);
   const note=underpowered?`⚠ ${underpowered} isolated grid${underpowered===1?'':'s'} short of power`:`${fmt(g.demand)} used · ${fmt(available)} spare`;
   const powerMetric=['POWER · AVAILABLE / TOTAL',`${fmt(available)} / ${fmt(g.supply)}`,note,underpowered>0];
+  const levelMetric=['FACTORY LEVEL',String(lvl),lvl<TALENT_UNLOCK_LEVEL?`Talent tree at Level ${TALENT_UNLOCK_LEVEL}`:`${availableTalentPoints(state)} free talent points`];
   const values=inTutorial()? [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],powerMetric]
-    : [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],['RESEARCH',fmt(state.data)],powerMetric,['CAPACITY',`${usedSlots(state,catalog)} / ${totalSlots(state)}`],['ANGELS',fmt(state.angels)]];
-  $('#metrics').innerHTML=values.map(([name,value,note,warning])=>`<div class="metric ${warning?'metric-warning':''}" ${note?'title="Available / generated power. Separate electrical grids cannot share spare power until connected."':''}><small>${name}</small><strong>${value}</strong>${note?`<small class="metric-note">${note}</small>`:''}</div>`).join('');
+    : [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],levelMetric,['RESEARCH',fmt(state.data)],powerMetric,['CAPACITY',`${usedSlots(state,catalog)} / ${totalSlots(state)}`],['ANGELS',fmt(state.angels)]];
+  $('#metrics').innerHTML=values.map(([name,value,detail,warning])=>`<div class="metric ${warning?'metric-warning':''}" ${name.startsWith('POWER')?'title="Available / generated power. Separate grids may lack electricity even with spare total generation."':''}><small>${name}</small><strong>${value}</strong>${detail?`<small class="metric-note">${detail}</small>`:''}</div>`).join('');
 }
 function renderFacilities(){
   const step=TUTORIAL_STEPS[state.tutorialStep||0],milestone=nextCapacityMilestone(state);
@@ -66,12 +68,12 @@ function nodeMarkup(node){
   const materialIn=isMarket?['any']:Object.keys(def.inputs||{});
   const powerIn=def.demand>0;
   const out=def.output&&def.output!=='data'?def.output:null;
-  const port=(kind,resource,label)=>`<button class="port ${kind} ${resource==='power'?'power':'matter'} ${kind==='out'&&resource==='power'&&!def.power?'power-relay':''}" data-port="${kind}" data-resource="${resource}" data-node="${node.id}" style="--port-color:${catalog.resources[resource]?.color||'#449eaa'}" title="${safe(label)}" aria-label="${safe(label)}"></button>`;
+  const port=(kind,resource,label)=>`<button class="port ${kind} ${resource==='power'?'power':'matter'}" data-port="${kind}" data-resource="${resource}" data-node="${node.id}" style="--port-color:${catalog.resources[resource]?.color||'#449eaa'}" title="${safe(label)}" aria-label="${safe(label)}"></button>`;
   return `<div class="factory-node ${node.id===state.selectedNode?'selected':''} ${node.enabled?'':'disabled-node'}" data-node-id="${node.id}" style="left:${node.x}px;top:${node.y}px;--node-color:${def.color}">
     <div class="node-head" data-drag="${node.id}"><span class="node-icon">${def.icon}</span><span><strong>${safe(def.name)}</strong><small>UNIT ${node.id.toUpperCase()} · LV ${node.level}</small></span></div>
     <div class="node-body"><div class="node-throughput" data-node-rate="${node.id}">Calculating…</div><div class="node-buffer" data-node-stock="${node.id}">0 stored</div></div>
     <div class="port-set left">${materialIn.map(r=>port('in',r,r==='any'?'Accept any product':`Input: ${r}`)).join('')}${powerIn?port('in','power','Power input'):''}</div>
-    <div class="port-set right">${out?port('out',out,`Output: ${catalog.resources[out]?.name||out}`):''}${isMarket?'':port('out','power',def.power?'Generated power supply': 'Power bus relay (shares grid; does not generate electricity)')}</div>
+    <div class="port-set right">${out?port('out',out,`Output: ${catalog.resources[out]?.name||out}`):''}${def.power?port('out','power','Electricity output from generator'):''}</div>
     <button class="node-select" data-action="select" data-id="${node.id}" aria-label="Inspect ${safe(def.name)}">Inspect ↗</button>
   </div>`;
 }
@@ -123,7 +125,7 @@ function updateNodeStats(){
     const activity=productionActivity(n),maxRate=maxProductionRate(state,n,catalog),actual=activity.rate;
     let label,bufferText='';
     if(!n.enabled)label='⏸ Paused';
-    else if(def.power)label=`⚡ +${fmt(def.power*(1+0.5*(n.level-1)))} power generation`;
+    else if(def.power)label=`⚡ +${fmt(def.power*(1+0.5*(n.level-1))*(1+talentModifier(state,'powerGeneration')))} generated`;
     else if(n.kind==='market'){
       const sale=marketActivity(n),deliveries=state.edges.filter(e=>e.to===n.id&&e.resource!=='power');
       label=sale.units>0?`✓ Sold ${fmt(sale.units)} · +${money(sale.revenue)}`
@@ -132,14 +134,15 @@ function updateNodeStats(){
         :deliveries.some(e=>state.autoSell[e.resource])?'◌ Waiting for auto-sale goods':'◌ Waiting for delivered goods';
     }
     else if(def.output){
-      const shortInput=Object.entries(def.inputs||{}).find(([r,q])=>(n.buffer[r]||0)<q*0.8);
+      const diagnostics=productionDiagnostics(n);
+      const primary=Object.entries(diagnostics.limits).sort((a,b)=>b[1]-a[1])[0]?.[0];
+      const reason=primary==='power'?'Power':primary==='storage'?'Full output':primary==='offline'?'Offline':primary?(catalog.resources[primary]?.name||primary):null;
       const filled=def.output!=='data' && (n.buffer[def.output]||0)>capacity(state,n)-0.15;
       const rateText=`${fmt(actual)}/${fmt(maxRate)} ${def.output==='data'?'data':'units'}/s`;
       label=actual>=maxRate*0.95?`● ${rateText}`
-        :power<0.99?`⚠ Power-limited · ${rateText}`
-        :filled?`⚠ Output full · ${rateText}`
-        :shortInput?`◌ ${catalog.resources[shortInput[0]]?.name||shortInput[0]} limited · ${rateText}`
-        :`● ${rateText}`;
+        :reason?`⚠ ${reason} limited · ${rateText}`
+        :power<0.99?`⚠ Power limited · ${rateText}`
+        :filled?`⚠ Output full · ${rateText}`:`◌ Startup / settling · ${rateText}`;
     }else label='● Ready';
     if(n.kind==='market')bufferText=`${fmt(amount)} stored · ${state.autoSell.metal?'metal auto-sell ON':'manual metal sales'}`;
     else if(def.output&&def.output!=='data')bufferText=`${catalog.resources[def.output]?.name||def.output}: ${fmt(n.buffer[def.output]||0)} stored`;
@@ -159,20 +162,20 @@ function renderInspector(){
   const def=nodeDef(node),tracked=new Set([...Object.keys(def.inputs||{}),...(def.output&&def.output!=='data'?[def.output]:[]),...Object.entries(node.buffer).filter(([,qty])=>qty>0.005).map(([resource])=>resource)]),stock=[...tracked].map(resource=>`<div class="inventory-row"><span>${safe(catalog.resources[resource]?.name||resource)}${def.output===resource?' (output)':''}</span><strong>${fmt(node.buffer[resource]||0)}</strong></div>`).join('')||'<p class="muted tiny">No materials buffered</p>';
   const inputs=Object.keys(def.inputs||{}).map(r=>`${catalog.resources[r].name}: ${fmt(def.inputs[r])}/s`).join(' · ');
   const upgrade=upgradeCost(node,catalog);
-  const currentPerformance=def.output?maxProductionRate(state,node,catalog):def.power?def.power*(1+0.5*(node.level-1)):capacity(state,node);
-  const nextPerformance=def.output?maxProductionRate(state,{...node,level:node.level+1},catalog):def.power?def.power*(1+0.5*node.level):capacity(state,{...node,level:node.level+1});
+  const currentPerformance=def.output?maxProductionRate(state,node,catalog):def.power?def.power*(1+0.5*(node.level-1))*(1+talentModifier(state,'powerGeneration')):capacity(state,node);
+  const nextPerformance=def.output?maxProductionRate(state,{...node,level:node.level+1},catalog):def.power?def.power*(1+0.5*node.level)*(1+talentModifier(state,'powerGeneration')):capacity(state,{...node,level:node.level+1});
   const performanceUnit=def.output?' units/s':def.power?' power':' storage/item';
   const routes=state.edges.filter(e=>e.from===node.id||e.to===node.id).map(e=>{
     const other=byId(e.from===node.id?e.to:e.from);return `<div class="route-row"><span>${e.from===node.id?'→':'←'} ${safe(other?nodeDef(other).name:'Unknown')} <small>${safe(catalog.resources[e.resource]?.name||(e.resource==='power'?'Power grid':e.resource))}</small></span><button data-action="unlink" data-id="${e.id}" title="Disconnect">×</button></div>`;
   }).join('')||'<p class="muted tiny">No connections yet</p>';
   area.innerHTML=`<div class="card inspector-card"><div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Facilities of this type</span><strong>${state.nodes.filter(n=>n.kind===node.kind).length} / ${facilityLimit(state,node.kind)}</strong></div><div class="stat-pair"><span>Upgrade benefit</span><strong>${fmt(currentPerformance)} → ${fmt(nextPerformance)} ${performanceUnit}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output?(catalog.resources[def.output]?.name||def.output): (def.power?`${def.power} electricity`:'None · receives goods')}</strong></div>
     <div class="inspector-actions"><button data-action="upgrade" data-id="${node.id}" ${state.credits>=upgrade&&node.level<20?'':'disabled'}>↑ Upgrade · ${money(upgrade)}</button><button data-action="toggle" data-id="${node.id}">${node.enabled?'Pause':'Resume'}</button><button class="danger" data-action="demolish" data-id="${node.id}">Recycle</button></div>
-    <h3>Local inventory <small>${fmt(capacity(state,node))} cap per item</small></h3>${stock}<h3>Connections</h3>${routes}<p class="tiny muted">Material ports move goods. Yellow ports connect machines to a shared electrical grid. Powered machines may relay electricity but cannot generate it.</p></div>`;
+    <h3>Local inventory <small>${fmt(capacity(state,node))} cap per item</small></h3>${stock}<h3>Connections</h3>${routes}<p class="tiny muted">Only Power Stations and Solar Arrays have power outputs. Connect their yellow ports directly to each consuming machine.</p></div>`;
 }
 function renderOverview(){
   const g=gridStatus(state,catalog);
   const totals=Object.keys(catalog.resources).filter(r=>r!=='data').map(r=>[r,state.nodes.reduce((sum,n)=>sum+(n.buffer[r]||0),0)]).filter(([,n])=>n>0.01);
-  $('#overview').innerHTML=`<div class="stat-pair"><span>Generated power</span><strong>${fmt(g.supply)}/s</strong></div><div class="stat-pair"><span>Power demand</span><strong>${fmt(g.demand)}/s</strong></div><div class="stat-pair"><span>Grid efficiency</span><strong>${g.demand?fmt(Math.min(100,g.supply/g.demand*100),0):100}%*</strong></div><div class="stat-pair"><span>Warehoused goods</span><strong>${fmt(totals.reduce((n,[,v])=>n+v,0))}</strong></div><div class="divider"></div>${totals.map(([id,value])=>`<div class="inventory-row"><span>${safe(catalog.resources[id].name)}</span><strong>${fmt(value)}</strong></div>`).join('')}<p class="muted tiny">*Each isolated grid is calculated separately. Select a node to inspect its actual supply.</p>`;
+  $('#overview').innerHTML=`<div class="stat-pair"><span>Generated power</span><strong>${fmt(g.supply)}/s</strong></div><div class="stat-pair"><span>Power demand</span><strong>${fmt(g.demand)}/s</strong></div><div class="stat-pair"><span>Grid efficiency</span><strong>${g.demand?fmt(Math.min(100,g.supply/g.demand*100),0):100}%*</strong></div><div class="stat-pair"><span>Warehoused goods</span><strong>${fmt(totals.reduce((n,[,v])=>n+v,0))}</strong></div><div class="stat-pair"><span>Factory Level</span><strong>${factoryLevel(state)}</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${usedSlots(state,catalog)} / ${totalSlots(state)}</strong></div><div class="stat-pair"><span>Next level capacity gain</span><strong>Level ${nextCapacityLevel(state)??'MAX'} (+2 slots)</strong></div><div class="stat-pair"><span>Permanent capacity investment</span><strong>+${3*(state.investments.infrastructure||0)} slots</strong></div><p class="tiny muted">Gain Factory XP from sales and contracts, earn +2 industrial slots every 3 levels, or buy Industrial Estate with investors. Certain talents add more slots.</p><div class="divider"></div>${totals.map(([id,value])=>`<div class="inventory-row"><span>${safe(catalog.resources[id].name)}</span><strong>${fmt(value)}</strong></div>`).join('')}<p class="muted tiny">*Each isolated grid is calculated separately. Select a node to inspect its actual supply.</p>`;
 }
 function renderLayouts(){
   $('#layouts').innerHTML=state.layouts.length?state.layouts.map((layout,i)=>`<div class="route-row"><span>${safe(layout.name)} <small>${layout.nodes.length} facilities</small></span><button data-action="layout-load" data-id="${i}">Build</button><button data-action="layout-delete" data-id="${i}" title="Delete blueprint">×</button></div>`).join(''):'<p class="muted tiny">No saved layouts yet.</p>';
