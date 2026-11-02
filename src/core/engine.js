@@ -37,7 +37,7 @@ export function sell(state,catalog,resource,amount){
   let sold=0;
   const unitPrice=price(state,catalog,resource)*(state.autoSell[resource]?(1+bonus(state,'autoPricing')):1);
   for(const node of state.nodes){
-    if(node.kind!=='market')continue;
+    if(node.kind!=='market'&&node.kind!=='warehouse')continue;
     const take=Math.min(remaining,node.buffer[resource]||0);
     if(take<=0)continue;
     node.buffer[resource]-=take;remaining-=take;sold+=take;
@@ -154,7 +154,7 @@ export function simulate(state,catalog,seconds,{offline=false}={}){
   const efficiency=offline?Math.min(1,0.5+researchModifier(state,'offlinePower')):1;
   const simulated=duration;
   while(duration>1e-7){const dt=Math.min(1,duration);produceOneSecond(state,catalog,dt,efficiency);duration-=dt;}
-  if(!offline)tickOrders(state,catalog,simulated);
+  if(!offline&&state.onboarding)tickOrders(state,catalog,simulated);
   for(const node of state.nodes){
     const def=catalog.facilities[node.kind];if(!def?.output)continue;
     const activity=productionActivity(node);
