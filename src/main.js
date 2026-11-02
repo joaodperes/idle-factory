@@ -6,6 +6,7 @@ import {usedSlots,totalSlots,upgradeCost,nodeCost,moveFacility,facilityLimit,nex
 import {addFacility,removeFacility,addEdge,upgradeFacility,buyResearch,buyTalent,buyInvestment,resetCompany,saveLayout,loadLayout,respecTalents} from './core/actions.js';
 import {TUTORIAL_STEPS,advanceTutorial,tutorialPort} from './core/tutorial.js';
 import {routeConnection,routePath} from './core/router.js';
+import {INITIAL_CANVAS_WIDTH,INITIAL_CANVAS_HEIGHT,expandedWorkspace} from './core/workspace.js';
 import {factoryLevel,nextFactoryLevelXp,talentStatus,pointsEarned,TIER_RULES,talentModifier,TALENT_UNLOCK_LEVEL} from './core/talents.js';
 
 const catalog=await loadCatalog();
@@ -16,8 +17,22 @@ let pending=null;
 let drag=null;
 let notifyTimer=null;
 let practiceSnapshot=null; // Replays run in a disposable practice factory; player saves are untouched.
-const CANVAS_W=2500,CANVAS_H=1650,MIN_CANVAS_ZOOM=0.35,MAX_CANVAS_ZOOM=1.75;
+const MIN_CANVAS_ZOOM=0.05,MAX_CANVAS_ZOOM=1.75;
 let canvasZoom=1; // Canvas-only zoom, never browser/page zoom.
+let canvasWidth=INITIAL_CANVAS_WIDTH,canvasHeight=INITIAL_CANVAS_HEIGHT;
+/** Resize the logical world and its SVG together, independently of zoom. */
+function resizeCanvas(extraX=0,extraY=0){
+  const next=expandedWorkspace(state.nodes,extraX,extraY,{width:canvasWidth,height:canvasHeight});
+  if(next.width===canvasWidth&&next.height===canvasHeight)return;
+  canvasWidth=next.width;canvasHeight=next.height;
+  $('#editor-world').style.width=`${canvasWidth}px`;
+  $('#editor-world').style.height=`${canvasHeight}px`;
+  $('#links').setAttribute('viewBox',`0 0 ${canvasWidth} ${canvasHeight}`);
+  $('#links').style.width=`${canvasWidth}px`;
+  $('#links').style.height=`${canvasHeight}px`;
+  $('#editor-stage').style.width=`${canvasWidth*canvasZoom}px`;
+  $('#editor-stage').style.height=`${canvasHeight*canvasZoom}px`;
+}
 const inTutorial=()=>!state.onboarding;
 const $=selector=>document.querySelector(selector);
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -113,6 +128,7 @@ function drawLinks(){
   svg.dataset.blockedRoutes=String(blockedRoutes);
 }
 function renderGraph(){
+  resizeCanvas();
   $('#nodes').innerHTML=state.nodes.map(nodeMarkup).join('');
   drawLinks();
   updateNodeStats();
@@ -391,8 +407,8 @@ function handleAction(button){
     const scroll=$('#editor-scroll');
     const idx=state.nodes.length;
     const placement=inTutorial()?({smelter:{x:650,y:125},market:{x:960,y:125}}[kind]):null;
-    const x=placement?.x??Math.min(2250,Math.round(scroll.scrollLeft/canvasZoom+200+(idx%3)*45));
-    const y=placement?.y??Math.min(1400,Math.round(scroll.scrollTop/canvasZoom+200+(idx%5)*50));
+    const x=placement?.x??Math.max(0,Math.round(scroll.scrollLeft/canvasZoom+200+(idx%3)*45));
+    const y=placement?.y??Math.max(0,Math.round(scroll.scrollTop/canvasZoom+200+(idx%5)*50));
     runAction(addFacility(state,catalog,kind,x,y),'Facility commissioned');
     if(inTutorial())focusGuidedTarget();return;
   }
@@ -432,23 +448,52 @@ document.addEventListener('click',event=>{
   const edge=event.target.closest('[data-edge]');if(edge){state.edges=state.edges.filter(e=>e.id!==edge.dataset.edge);runAction(null,'Link disconnected');return;}
   const tab=event.target.closest('[data-tab]');if(tab)setTab(tab.dataset.tab);
 });
+/** Include both pointer movement and viewport scrolling in drag coordinates. */
+function updateDraggedNode(){
+  if(!drag)return;
+  const scroll=$('#editor-scroll'),node=byId(drag.id);if(!node)return;
+  moveFacility(state,node.id,
+    drag.x+(drag.cx-drag.sx+scroll.scrollLeft-drag.scrollX)/canvasZoom,
+    drag.y+(drag.cy-drag.sy+scroll.scrollTop-drag.scrollY)/canvasZoom);
+  const element=document.querySelector(`[data-node-id="${node.id}"]`);
+  if(element){element.style.left=`${node.x}px`;element.style.top=`${node.y}px`;}
+  resizeCanvas(node.x+207,node.y+180);
+  drawLinks();
+}
+/** Dragging near a viewport edge pans into new factory space automatically. */
+function autoPanDraggedNode(){
+  if(!drag)return;
+  const scroll=$('#editor-scroll'),rect=scroll.getBoundingClientRect(),edge=55;
+  const rate=distance=>Math.min(24,Math.max(0,(edge-distance)/edge*24));
+  const dx=drag.cx>rect.right-edge?rate(rect.right-drag.cx)
+    :drag.cx<rect.left+edge?-rate(drag.cx-rect.left):0;
+  const dy=drag.cy>rect.bottom-edge?rate(rect.bottom-drag.cy)
+    :drag.cy<rect.top+edge?-rate(drag.cy-rect.top):0;
+  if(dx||dy){
+    resizeCanvas(
+      (scroll.scrollLeft+scroll.clientWidth+Math.max(0,dx))/canvasZoom,
+      (scroll.scrollTop+scroll.clientHeight+Math.max(0,dy))/canvasZoom);
+    const prevX=scroll.scrollLeft,prevY=scroll.scrollTop;
+    scroll.scrollLeft+=dx;scroll.scrollTop+=dy;
+    if(scroll.scrollLeft!==prevX||scroll.scrollTop!==prevY)updateDraggedNode();
+  }
+  drag.frame=requestAnimationFrame(autoPanDraggedNode);
+}
 $('#editor-world').addEventListener('pointerdown',e=>{
   if(e.button!==0||e.target.closest('button'))return;
   const head=e.target.closest('[data-drag]');if(!head)return;
   const node=byId(head.dataset.drag);if(!node)return;
-  drag={id:node.id,x:node.x,y:node.y,sx:e.clientX,sy:e.clientY};
+  const scroll=$('#editor-scroll');
+  drag={id:node.id,x:node.x,y:node.y,sx:e.clientX,sy:e.clientY,cx:e.clientX,cy:e.clientY,
+    scrollX:scroll.scrollLeft,scrollY:scroll.scrollTop,pointerId:e.pointerId,frame:null};
   head.setPointerCapture(e.pointerId);selection(node.id);
+  drag.frame=requestAnimationFrame(autoPanDraggedNode);
 });
 $('#editor-world').addEventListener('pointermove',e=>{
-  if(!drag)return;
-  const node=byId(drag.id);if(!node)return;
-  const x=drag.x+(e.clientX-drag.sx)/canvasZoom,y=drag.y+(e.clientY-drag.sy)/canvasZoom;
-  moveFacility(state,node.id,x,y);
-  const element=document.querySelector(`[data-node-id="${node.id}"]`);
-  if(element){element.style.left=`${node.x}px`;element.style.top=`${node.y}px`;}
-  drawLinks();
+  if(!drag||e.pointerId!==drag.pointerId)return;
+  drag.cx=e.clientX;drag.cy=e.clientY;updateDraggedNode();
 });
-const stopDragging=()=>{if(drag){drag=null;saveLocal();}};
+const stopDragging=()=>{if(drag){cancelAnimationFrame(drag.frame);drag=null;saveLocal();}};
 $('#editor-world').addEventListener('pointerup',stopDragging);
 $('#editor-world').addEventListener('pointercancel',stopDragging);
 window.addEventListener('pointerup',stopDragging);
@@ -460,8 +505,8 @@ function zoomCanvas(nextZoom,anchorX,anchorY){
   const ax=anchorX??scroll.clientWidth/2, ay=anchorY??scroll.clientHeight/2;
   const worldX=(scroll.scrollLeft+ax)/canvasZoom, worldY=(scroll.scrollTop+ay)/canvasZoom;
   canvasZoom=zoom;
-  $('#editor-stage').style.width=`${CANVAS_W*zoom}px`;
-  $('#editor-stage').style.height=`${CANVAS_H*zoom}px`;
+  $('#editor-stage').style.width=`${canvasWidth*zoom}px`;
+  $('#editor-stage').style.height=`${canvasHeight*zoom}px`;
   $('#editor-world').style.transform=`scale(${zoom})`;
   scroll.scrollLeft=worldX*zoom-ax;
   scroll.scrollTop=worldY*zoom-ay;
