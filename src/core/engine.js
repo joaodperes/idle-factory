@@ -54,6 +54,12 @@ export function earn(state,amount,bonusXp=0){
 }
 export function managerLevel(state){return factoryLevel(state);}
 export function availableTalentPoints(state){return freeTalentPoints(state);}
+/** Every generator contributes to its network; links do not multiply its power. */
+export function generatorOutput(state,node,catalog){
+  const def=catalog.facilities[node.kind];if(!def?.power||!node.enabled)return 0;
+  const levelScale=node.kind==='solar'?1+(node.level-1):1+0.5*(node.level-1);
+  return def.power*levelScale*(1+bonus(state,'powerGeneration'))*(node.kind==='solar'?(1+researchModifier(state,'solarPower')+bonus(state,'solarPower')):1);
+}
 export function gridStatus(state,catalog){
   const ids=new Map(state.nodes.map((n,i)=>[n.id,i]));
   const parent=state.nodes.map((_,i)=>i);
@@ -67,9 +73,7 @@ export function gridStatus(state,catalog){
     if(!groups.has(root))groups.set(root,{supply:0,demand:0,nodes:[]});
     const g=groups.get(root);g.nodes.push(node.id);
     if(!node.enabled)continue;
-    const generation=def.power||0;
-    const levelBonus=node.kind==='solar'?(1+(node.level-1)):(1+0.5*(node.level-1));
-    g.supply+=generation*levelBonus*(1+bonus(state,'powerGeneration'))*(node.kind==='solar'?(1+researchModifier(state,'solarPower')+bonus(state,'solarPower')):1);
+    g.supply+=generatorOutput(state,node,catalog);
     g.demand+=(def.demand||0)*Math.max(0.25,1-bonus(state,'powerSavings'))*Math.max(0.3,1-researchModifier(state,'powerSavings'));
   }
   const efficiency=new Map();let supply=0,demand=0;
