@@ -2,7 +2,7 @@ import {defaultState,operatingGraph} from './state.js';
 import {addFacility,removeFacility,addEdge,upgradeCost,usedSlots,totalSlots,nodeCost,normalizePowerEdges} from './graph.js';
 import {prestigeGain,earn} from './engine.js';
 import {researchStatus,researchLicensingCost,researchLicensingReward} from './research.js';
-import {talentStatus,findTalent,talentModifier,refundTalents} from './talents.js';
+import {talentStatus,findTalent,talentModifier,refundTalents,currentCareer,completedCareers} from './talents.js';
 export {addFacility,removeFacility,addEdge};
 export function upgradeFacility(state,catalog,id){
   const node=state.nodes.find(n=>n.id===id);if(!node)return 'Facility not found';
@@ -30,12 +30,19 @@ export function publishResearch(state,catalog){
 export function buyTalent(state,catalog,id){
   const status=talentStatus(state,catalog,id);
   if(!status.enabled)return status.reason;
-  if(!findTalent(catalog,id))return 'Talent not found';
+  const entry=findTalent(catalog,id);
+  if(!entry)return 'Talent not found';
+  if(!currentCareer(state,catalog))state.careerTree=entry.treeId;
   state.talents[id]=(state.talents[id]||0)+1;
+  if(entry.node.capstone){
+    state.completedCareers=[...new Set([...(state.completedCareers||[]),entry.treeId])];
+    state.careerTree=null;
+  }
   return null;
 }
 /** Free respec keeps players experimenting with different factory builds. */
-export function respecTalents(state){
+export function respecTalents(state,catalog){
+  if(catalog&&currentCareer(state,catalog))return 'Finish your current career capstone before resetting the talent tree';
   refundTalents(state);
   // Auto-selling is available for every sellable resource, even after respec.
   return null;
@@ -53,6 +60,7 @@ export function resetCompany(state){
   const next=defaultState();
   next.angels=state.angels+earned;next.totalAngels=state.totalAngels+earned;
   next.investments={...state.investments};next.talents={...state.talents};
+  next.careerTree=state.careerTree||null;next.completedCareers=[...(state.completedCareers||[])];
   next.specialization=null;next.xp=state.xp;
   next.lifetimeRevenue=state.lifetimeRevenue;next.contractsFilled=state.contractsFilled;
   next.dailyContracts={...state.dailyContracts};
