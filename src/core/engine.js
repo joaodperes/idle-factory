@@ -3,6 +3,9 @@ import {factoryLevel,freeTalentPoints,talentModifier} from './talents.js';
 const OUTPUT_LIMIT=120;
 const recentMarketSales=new WeakMap();
 const recentProduction=new WeakMap();
+const recentDiagnostics=new WeakMap();
+/** Last simulated interval: reasons a machine operated below its potential, and actual input delivery rates. */
+export function productionDiagnostics(node){return recentDiagnostics.get(node)||{limits:{},received:{},consumed:{},seconds:0};}
 /** Measured output during the last simulation update, not a theoretical catalog rate. */
 export function productionActivity(node){return recentProduction.get(node)||{produced:0,seconds:0,rate:0};}
 /** Sales made during the most recent simulation update (not cumulative inventory). */
@@ -99,22 +102,42 @@ function produceOneSecond(state,catalog,dt,offlineFactor){
     const available=from.buffer[edge.resource]||0;
     const free=Math.max(0,capacity(state,to)-(to.buffer[edge.resource]||0));
     const qty=Math.min(available,free,rate);
-    if(qty>0){from.buffer[edge.resource]=available-qty;to.buffer[edge.resource]=(to.buffer[edge.resource]||0)+qty;}
+    if(qty>0){
+      from.buffer[edge.resource]=available-qty;to.buffer[edge.resource]=(to.buffer[edge.resource]||0)+qty;
+      const diag=recentDiagnostics.get(to);
+      if(diag)diag.received[edge.resource]=(diag.received[edge.resource]||0)+qty;
+    }
   }
   for(const node of state.nodes){
     const def=defs[node.kind];
     if(!node.enabled||!def||!def.output)continue;
     const efficiencyFactor=efficiency.get(node.id)||0;
     const speed=(1+0.5*(node.level-1)+bonus(state,'speed'))*(getResearch(state,'robotics')?1.5:1);
-    let factor=speed*efficiencyFactor*offlineFactor;
+    const idealFactor=speed;
+    const powerFactor=speed*efficiencyFactor*offlineFactor;
     const inputs=def.inputs||{};
-    for(const [resource,need] of Object.entries(inputs)){
-      const cost=need*dt*(1-bonus(state,'inputSavings'));
-      if(cost>0)factor=Math.min(factor,(node.buffer[resource]||0)/cost);
+    const inputLimits=Object.entries(inputs).map(([resource,need])=>{
+      const cost=need*dt*Math.max(0.2,1-bonus(state,'inputSavings'));
+      return {resource,cap:cost>0?(node.buffer[resource]||0)/cost:Infinity,cost};
+    });
+    const outputUnit=def.rate*dt*(1+0.1*(state.investments.engineering||0))*(getResearch(state,'yield')?1.25:1)*(1+bonus(state,'output'));
+    const spaceCap=def.output==='data'?Infinity:Math.max(0,capacity(state,node)-(node.buffer[def.output]||0))/outputUnit;
+    const factor=Math.min(powerFactor,spaceCap,...inputLimits.map(input=>input.cap));
+    const diag=recentDiagnostics.get(node);
+    if(diag){
+      const reasons=[];
+      if(offlineFactor<0.999&&powerFactor<idealFactor-1e-8&&Math.abs(powerFactor-factor)<1e-7)reasons.push('offline');
+      if(efficiencyFactor<0.999&&Math.abs(powerFactor-factor)<1e-7)reasons.push('power');
+      if(spaceCap<idealFactor-1e-8&&Math.abs(spaceCap-factor)<1e-7)reasons.push('storage');
+      for(const input of inputLimits)if(input.cap<idealFactor-1e-8&&Math.abs(input.cap-factor)<1e-7)reasons.push(input.resource);
+      for(const reason of reasons)diag.limits[reason]=(diag.limits[reason]||0)+dt;
     }
-    factor=Math.min(factor,Math.max(0,capacity(state,node)-(node.buffer[def.output]||0))/(def.rate*dt*(1+0.1*(state.investments.engineering||0))*(getResearch(state,'yield')?1.25:1)*(1+bonus(state,'output'))));
     if(factor<=0)continue;
-    for(const [resource,need] of Object.entries(inputs))node.buffer[resource]=Math.max(0,(node.buffer[resource]||0)-need*dt*(1-bonus(state,'inputSavings'))*factor);
+    for(const input of inputLimits){
+      const used=input.cost*factor;
+      node.buffer[input.resource]=Math.max(0,(node.buffer[input.resource]||0)-used);
+      if(diag)diag.consumed[input.resource]=(diag.consumed[input.resource]||0)+used;
+    }
     const output=def.rate*dt*factor*(1+0.1*(state.investments.engineering||0))*(getResearch(state,'yield')?1.25:1)*(1+bonus(state,'output'));
     if(def.output==='data'){state.data+=output;}else node.buffer[def.output]=(node.buffer[def.output]||0)+output;
     const activity=productionActivity(node);
@@ -126,7 +149,10 @@ function produceOneSecond(state,catalog,dt,offlineFactor){
 export function simulate(state,catalog,seconds,{offline=false}={}){
   for(const node of state.nodes){
     if(node.kind==='market')recentMarketSales.set(node,{units:0,revenue:0});
-    if(catalog.facilities[node.kind]?.output)recentProduction.set(node,{produced:0,seconds:0,rate:0});
+    if(catalog.facilities[node.kind]?.output){
+      recentProduction.set(node,{produced:0,seconds:0,rate:0});
+      recentDiagnostics.set(node,{limits:{},received:{},consumed:{},seconds:0});
+    }
   }
   let duration=Math.max(0,Math.min(offline?8*3600:3600,seconds));
   const efficiency=offline?(getResearch(state,'offline')?1:0.5):1;
@@ -136,6 +162,8 @@ export function simulate(state,catalog,seconds,{offline=false}={}){
     const def=catalog.facilities[node.kind];if(!def?.output)continue;
     const activity=productionActivity(node);
     recentProduction.set(node,{produced:activity.produced,seconds:simulated,rate:simulated>0?activity.produced/simulated:0});
+    const diag=recentDiagnostics.get(node);
+    if(diag)diag.seconds=simulated;
   }
 }
 export function prestigeGain(state){return Math.max(0,Math.floor(Math.sqrt(state.runRevenue/2500)+state.runContracts*0.35));}
