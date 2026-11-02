@@ -65,6 +65,7 @@ export function sanitizeSave(raw, catalog) {
     if(seen.has(key))return [];
     seen.add(key);
     const from=s.nodes.find(n=>n.id===e.from),to=s.nodes.find(n=>n.id===e.to);
+    if(e.resource==='power' && ((!catalog.facilities[from.kind].power&&!catalog.facilities[from.kind].demand)||!catalog.facilities[to.kind].demand))return [];
     if(e.resource!=='power' && (catalog.facilities[from.kind].output!==e.resource || (to.kind!=='market' && !catalog.facilities[to.kind].inputs?.[e.resource])))return [];
     return [{id:text(e.id,`e${s.edges?.length||seen.size}`),from:e.from,to:e.to,resource:e.resource}];
   });
