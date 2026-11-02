@@ -38,8 +38,11 @@ function setTab(tab){
 }
 function renderMetrics(){
   const g=gridStatus(state,catalog);
-  const values=inTutorial()? [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],['POWER',`${fmt(g.supply)} / ${fmt(g.demand)}`]] : [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],['RESEARCH',fmt(state.data)],['POWER',`${fmt(g.supply)} / ${fmt(g.demand)}`],['CAPACITY',`${usedSlots(state,catalog)} / ${totalSlots(state)}`],['ANGELS',fmt(state.angels)]];
-  $('#metrics').innerHTML=values.map(([name,value])=>`<div class="metric"><small>${name}</small><strong>${value}</strong></div>`).join('');
+  const underpowered=[...g.groups.values()].filter(group=>group.demand>group.supply+0.000001).length;
+  const powerNote=underpowered?`⚠ ${underpowered} underpowered grid${underpowered>1?'s':''}`:`${fmt(Math.max(0,g.supply-g.demand))} spare`;
+  const powerMetric=['POWER · PRODUCED / USED',`${fmt(g.supply)} / ${fmt(g.demand)}`,powerNote,underpowered>0];
+  const values=inTutorial()? [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],powerMetric] : [['CREDITS',money(state.credits)],['REVENUE',money(state.runRevenue)],['RESEARCH',fmt(state.data)],powerMetric,['CAPACITY',`${usedSlots(state,catalog)} / ${totalSlots(state)}`],['ANGELS',fmt(state.angels)]];
+  $('#metrics').innerHTML=values.map(([name,value,note,warning])=>`<div class="metric ${warning?'metric-warning':''}" ${note?'title="Power generated / consumed. Disconnected grids are evaluated separately."':''}><small>${name}</small><strong>${value}</strong>${note?`<small class="metric-note">${note}</small>`:''}</div>`).join('');
 }
 function renderFacilities(){
   const step=TUTORIAL_STEPS[state.tutorialStep||0];
