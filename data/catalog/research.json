@@ -38,7 +38,7 @@
   "yield": {
     "id": "yield",
     "name": "Refined Processes",
-    "cost": 35,
+    "cost": 45,
     "tier": 2,
     "col": 1,
     "description": "All production output +25%.",
@@ -52,7 +52,7 @@
   "supply_ai": {
     "id": "supply_ai",
     "name": "Supply Forecasting",
-    "cost": 45,
+    "cost": 65,
     "tier": 2,
     "col": 2,
     "description": "Material link throughput +20%.",
@@ -67,7 +67,7 @@
   "solar_cells": {
     "id": "solar_cells",
     "name": "High-Efficiency Photovoltaics",
-    "cost": 55,
+    "cost": 90,
     "tier": 2,
     "col": 3,
     "description": "Solar Array generation +50%.",
@@ -81,35 +81,37 @@
   "robotics": {
     "id": "robotics",
     "name": "Industrial Robotics",
-    "cost": 75,
+    "cost": 150,
     "tier": 3,
     "col": 1,
-    "description": "All machine cycles operate 50% faster.",
+    "description": "All machine cycles operate 50% faster. Exclusive with Autonomous Operations until advanced scientific unification.",
     "effects": {
       "speed": 0.5
     },
     "requires": [
       "yield"
-    ]
+    ],
+    "choice": "automation-track"
   },
   "offline": {
     "id": "offline",
     "name": "Autonomous Operations",
-    "cost": 90,
+    "cost": 205,
     "tier": 3,
     "col": 2,
-    "description": "Offline production runs at 100% efficiency.",
+    "description": "Offline production runs at 100% efficiency. Exclusive with Industrial Robotics until advanced scientific unification.",
     "effects": {
       "offlinePower": 0.5
     },
     "requires": [
       "supply_ai"
-    ]
+    ],
+    "choice": "automation-track"
   },
   "contract_network": {
     "id": "contract_network",
     "name": "Regional Commerce Network",
-    "cost": 105,
+    "cost": 275,
     "tier": 3,
     "col": 3,
     "description": "Contract rewards +15%.",
@@ -124,7 +126,7 @@
   "superconductors": {
     "id": "superconductors",
     "name": "Superconducting Motors",
-    "cost": 135,
+    "cost": 430,
     "tier": 4,
     "col": 1,
     "description": "Machines consume another 12% less power.",
@@ -139,7 +141,7 @@
   "synthesis": {
     "id": "synthesis",
     "name": "Advanced Material Synthesis",
-    "cost": 160,
+    "cost": 610,
     "tier": 4,
     "col": 2,
     "description": "All production output +12%.",
@@ -153,7 +155,7 @@
   "analytics": {
     "id": "analytics",
     "name": "Market Intelligence",
-    "cost": 190,
+    "cost": 850,
     "tier": 4,
     "col": 3,
     "description": "Market sale prices +12%.",
@@ -167,7 +169,7 @@
   "quantum": {
     "id": "quantum",
     "name": "Quantum Logistics",
-    "cost": 240,
+    "cost": 1400,
     "tier": 5,
     "col": 1,
     "description": "Link throughput +40%.",
@@ -182,7 +184,7 @@
   "machine_learning": {
     "id": "machine_learning",
     "name": "Adaptive Industry AI",
-    "cost": 280,
+    "cost": 2200,
     "tier": 5,
     "col": 2,
     "description": "Machine cycles +20% and Research Data +15%.",
@@ -198,7 +200,7 @@
   "research_acceleration": {
     "id": "research_acceleration",
     "name": "Research Automation",
-    "cost": 330,
+    "cost": 3100,
     "tier": 5,
     "col": 3,
     "description": "Research Labs produce 30% more data.",
@@ -213,7 +215,7 @@
   "global_grid": {
     "id": "global_grid",
     "name": "Helios Solar Network",
-    "cost": 420,
+    "cost": 5200,
     "tier": 6,
     "col": 1,
     "description": "Solar Array power +60%.",
@@ -227,7 +229,7 @@
   "factory_scale": {
     "id": "factory_scale",
     "name": "Modular Megafactory",
-    "cost": 500,
+    "cost": 7800,
     "tier": 6,
     "col": 2,
     "description": "Factory gains +4 industrial slots.",
@@ -241,13 +243,14 @@
   "frontier": {
     "id": "frontier",
     "name": "Frontier Laboratories",
-    "cost": 650,
+    "cost": 12000,
     "tier": 6,
     "col": 3,
-    "description": "Research Labs produce 40% more data and licensing pays 20% more.",
+    "description": "Research Labs produce 40% more data and licensing pays 20% more. Opens opposing research-branch choices.",
     "effects": {
       "labOutput": 0.4,
-      "licenseYield": 0.2
+      "licenseYield": 0.2,
+      "researchUnification": 1
     },
     "requires": [
       "research_acceleration"
