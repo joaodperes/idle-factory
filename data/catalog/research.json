@@ -1,5 +1,5 @@
-[
-  {
+{
+  "logistics": {
     "id": "logistics",
     "name": "Logistics Algorithms",
     "cost": 12,
@@ -11,7 +11,7 @@
     },
     "requires": []
   },
-  {
+  "market": {
     "id": "market",
     "name": "Predictive Markets",
     "cost": 18,
@@ -23,7 +23,7 @@
     },
     "requires": []
   },
-  {
+  "energy": {
     "id": "energy",
     "name": "Efficient Motors",
     "cost": 24,
@@ -35,7 +35,7 @@
     },
     "requires": []
   },
-  {
+  "yield": {
     "id": "yield",
     "name": "Refined Processes",
     "cost": 35,
@@ -49,7 +49,7 @@
       "logistics"
     ]
   },
-  {
+  "supply_ai": {
     "id": "supply_ai",
     "name": "Supply Forecasting",
     "cost": 45,
@@ -64,7 +64,7 @@
       "market"
     ]
   },
-  {
+  "solar_cells": {
     "id": "solar_cells",
     "name": "High-Efficiency Photovoltaics",
     "cost": 55,
@@ -78,7 +78,7 @@
       "energy"
     ]
   },
-  {
+  "robotics": {
     "id": "robotics",
     "name": "Industrial Robotics",
     "cost": 75,
@@ -92,7 +92,7 @@
       "yield"
     ]
   },
-  {
+  "offline": {
     "id": "offline",
     "name": "Autonomous Operations",
     "cost": 90,
@@ -106,7 +106,7 @@
       "supply_ai"
     ]
   },
-  {
+  "contract_network": {
     "id": "contract_network",
     "name": "Regional Commerce Network",
     "cost": 105,
@@ -121,7 +121,7 @@
       "solar_cells"
     ]
   },
-  {
+  "superconductors": {
     "id": "superconductors",
     "name": "Superconducting Motors",
     "cost": 135,
@@ -136,7 +136,7 @@
       "robotics"
     ]
   },
-  {
+  "synthesis": {
     "id": "synthesis",
     "name": "Advanced Material Synthesis",
     "cost": 160,
@@ -150,7 +150,7 @@
       "robotics"
     ]
   },
-  {
+  "analytics": {
     "id": "analytics",
     "name": "Market Intelligence",
     "cost": 190,
@@ -164,7 +164,7 @@
       "contract_network"
     ]
   },
-  {
+  "quantum": {
     "id": "quantum",
     "name": "Quantum Logistics",
     "cost": 240,
@@ -179,7 +179,7 @@
       "synthesis"
     ]
   },
-  {
+  "machine_learning": {
     "id": "machine_learning",
     "name": "Adaptive Industry AI",
     "cost": 280,
@@ -195,7 +195,7 @@
       "analytics"
     ]
   },
-  {
+  "research_acceleration": {
     "id": "research_acceleration",
     "name": "Research Automation",
     "cost": 330,
@@ -210,7 +210,7 @@
       "analytics"
     ]
   },
-  {
+  "global_grid": {
     "id": "global_grid",
     "name": "Helios Solar Network",
     "cost": 420,
@@ -224,7 +224,7 @@
       "quantum"
     ]
   },
-  {
+  "factory_scale": {
     "id": "factory_scale",
     "name": "Modular Megafactory",
     "cost": 500,
@@ -238,7 +238,7 @@
       "machine_learning"
     ]
   },
-  {
+  "frontier": {
     "id": "frontier",
     "name": "Frontier Laboratories",
     "cost": 650,
@@ -253,4 +253,4 @@
       "research_acceleration"
     ]
   }
-]
+}
