@@ -155,6 +155,16 @@ function updateNodeStats(){
   const blocked=Number($('#links').dataset.blockedRoutes||0);
   $('#network-summary').textContent=`${state.nodes.length} facilities · ${state.edges.length} links${blocked?` · ⚠ ${blocked} obstructed (move cards)`:''}`;
 }
+function limitName(id){
+  if(id==='power')return 'Insufficient electricity';
+  if(id==='storage')return 'Full output storage';
+  if(id==='offline')return 'Offline efficiency';
+  return `${catalog.resources[id]?.name||id} supply`;
+}
+function limitingReasons(node){
+  const diagnostic=productionDiagnostics(node);
+  return Object.entries(diagnostic.limits).sort((a,b)=>b[1]-a[1]).map(([key,seconds])=>({key,label:limitName(key),seconds}));
+}
 function renderInspector(){
   const area=$('#inspector');const node=byId(state.selectedNode);
   if(inTutorial()){area.innerHTML='';return;}
@@ -168,14 +178,34 @@ function renderInspector(){
   const routes=state.edges.filter(e=>e.from===node.id||e.to===node.id).map(e=>{
     const other=byId(e.from===node.id?e.to:e.from);return `<div class="route-row"><span>${e.from===node.id?'→':'←'} ${safe(other?nodeDef(other).name:'Unknown')} <small>${safe(catalog.resources[e.resource]?.name||(e.resource==='power'?'Power grid':e.resource))}</small></span><button data-action="unlink" data-id="${e.id}" title="Disconnect">×</button></div>`;
   }).join('')||'<p class="muted tiny">No connections yet</p>';
-  area.innerHTML=`<div class="card inspector-card"><div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Facilities of this type</span><strong>${state.nodes.filter(n=>n.kind===node.kind).length} / ${facilityLimit(state,node.kind)}</strong></div><div class="stat-pair"><span>Upgrade benefit</span><strong>${fmt(currentPerformance)} → ${fmt(nextPerformance)} ${performanceUnit}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output?(catalog.resources[def.output]?.name||def.output): (def.power?`${def.power} electricity`:'None · receives goods')}</strong></div>
+  const diagnostic=productionDiagnostics(node),stats=productionActivity(node),reasons=limitingReasons(node);
+  const ideal=maxProductionRate(state,node,catalog),powerEff=gridStatus(state,catalog).efficiency.get(node.id)||0;
+  const util=ideal>0?Math.min(100,100*stats.rate/ideal):100;
+  const reasonsHtml=reasons.length?reasons.slice(0,4).map(reason=>`<div class="diagnostic-row warning"><span>${safe(reason.label)}</span><strong>${fmt(100*reason.seconds/Math.max(0.001,diagnostic.seconds),0)}% of last interval</strong></div>`).join(''):'<p class="tiny muted">No measured constraints yet, or the factory is running at its expected rate.</p>';
+  const inputDiagnostics=Object.entries(def.inputs||{}).map(([id,amount])=>{
+    const hasRoute=state.edges.some(edge=>edge.to===node.id&&edge.resource===id);
+    const supply=diagnostic.seconds>0?(diagnostic.received[id]||0)/diagnostic.seconds:0;
+    const target=def.rate?amount*ideal/def.rate*Math.max(0.2,1-talentModifier(state,'inputSavings')):amount;
+    const stored=node.buffer[id]||0;
+    return `<div class="diagnostic-row ${!hasRoute?'warning':''}"><span>${safe(catalog.resources[id]?.name||id)} ${hasRoute?'':'(no incoming link)'}</span><strong>${fmt(supply)}/${fmt(target)} per s · ${fmt(stored)} stored</strong></div>`;
+  }).join('');
+  const outStock=def.output&&def.output!=='data'?node.buffer[def.output]||0:0;
+  const outputUsage=def.output&&def.output!=='data'?`<div class="diagnostic-row"><span>Output buffer</span><strong>${fmt(outStock)} / ${fmt(capacity(state,node))}</strong></div>`:'';
+  const diagnosticHtml=def.output?`<div class="factory-diagnostics"><strong>Actual production: ${fmt(stats.rate)} / ${fmt(ideal)} per second (${fmt(util,0)}%)</strong><p class="tiny muted">Measured in the latest simulation. Limiters below are recorded while resources are consumed, not inferred from leftover stock.</p>${reasonsHtml}<div class="diagnostic-row ${powerEff<0.999?'warning':''}"><span>Electrical supply</span><strong>${fmt(powerEff*100,0)}% of demand</strong></div>${inputDiagnostics}${outputUsage}</div>`:'';
+  area.innerHTML=`<div class="card inspector-card"<div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Facilities of this type</span><strong>${state.nodes.filter(n=>n.kind===node.kind).length} / ${facilityLimit(state,node.kind)}</strong></div><div class="stat-pair"><span>Upgrade benefit</span><strong>${fmt(currentPerformance)} → ${fmt(nextPerformance)} ${performanceUnit}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output?(catalog.resources[def.output]?.name||def.output): (def.power?`${def.power} electricity`:'None · receives goods')}</strong></div>
     <div class="inspector-actions"><button data-action="upgrade" data-id="${node.id}" ${state.credits>=upgrade&&node.level<20?'':'disabled'}>↑ Upgrade · ${money(upgrade)}</button><button data-action="toggle" data-id="${node.id}">${node.enabled?'Pause':'Resume'}</button><button class="danger" data-action="demolish" data-id="${node.id}">Recycle</button></div>
-    <h3>Local inventory <small>${fmt(capacity(state,node))} cap per item</small></h3>${stock}<h3>Connections</h3>${routes}<p class="tiny muted">Only Power Stations and Solar Arrays have power outputs. Connect their yellow ports directly to each consuming machine.</p></div>`;
+    <h3>Local inventory <small>${fmt(capacity(state,node))} cap per item</small></h3>${stock}${diagnosticHtml}<h3>Connections</h3>${routes}<p class="tiny muted">Only Power Stations and Solar Arrays have power outputs. Connect their yellow ports directly to each consuming machine.</p></div>`;
 }
 function renderOverview(){
   const g=gridStatus(state,catalog);
   const totals=Object.keys(catalog.resources).filter(r=>r!=='data').map(r=>[r,state.nodes.reduce((sum,n)=>sum+(n.buffer[r]||0),0)]).filter(([,n])=>n>0.01);
-  $('#overview').innerHTML=`<div class="stat-pair"><span>Generated power</span><strong>${fmt(g.supply)}/s</strong></div><div class="stat-pair"><span>Power demand</span><strong>${fmt(g.demand)}/s</strong></div><div class="stat-pair"><span>Grid efficiency</span><strong>${g.demand?fmt(Math.min(100,g.supply/g.demand*100),0):100}%*</strong></div><div class="stat-pair"><span>Warehoused goods</span><strong>${fmt(totals.reduce((n,[,v])=>n+v,0))}</strong></div><div class="stat-pair"><span>Factory Level</span><strong>${factoryLevel(state)}</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${usedSlots(state,catalog)} / ${totalSlots(state)}</strong></div><div class="stat-pair"><span>Next level capacity gain</span><strong>Level ${nextCapacityLevel(state)??'MAX'} (+2 slots)</strong></div><div class="stat-pair"><span>Permanent capacity investment</span><strong>+${3*(state.investments.infrastructure||0)} slots</strong></div><p class="tiny muted">Gain Factory XP from sales and contracts, earn +2 industrial slots every 3 levels, or buy Industrial Estate with investors. Certain talents add more slots.</p><div class="divider"></div>${totals.map(([id,value])=>`<div class="inventory-row"><span>${safe(catalog.resources[id].name)}</span><strong>${fmt(value)}</strong></div>`).join('')}<p class="muted tiny">*Each isolated grid is calculated separately. Select a node to inspect its actual supply.</p>`;
+  $('#overview').innerHTML=`<div class="stat-pair"><span>Generated power</span><strong>${fmt(g.supply)}/s</strong></div><div class="stat-pair"><span>Power demand</span><strong>${fmt(g.demand)}/s</strong></div><div class="stat-pair"><span>Grid efficiency</span><strong>${g.demand?fmt(Math.min(100,g.supply/g.demand*100),0):100}%*</strong></div><div class="stat-pair"><span>Warehoused goods</span><strong>${fmt(totals.reduce((n,[,v])=>n+v,0))}</strong></div><div class="stat-pair"><span>Factory Level</span><strong>${factoryLevel(state)}</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${usedSlots(state,catalog)} / ${totalSlots(state)}</strong></div><div class="stat-pair"><span>Next level capacity gain</span><strong>Level ${nextCapacityLevel(state)??'MAX'} (+2 slots)</strong></div><div class="stat-pair"><span>Permanent capacity investment</span><strong>+${3*(state.investments.infrastructure||0)} slots</strong></div><p class="tiny muted">Gain Factory XP from sales and contracts, earn +2 industrial slots every 3 levels, or buy Industrial Estate with investors. Certain talents add more slots.</p><div class="divider"></div><h3>Production bottlenecks</h3>${(()=>{
+    const constrained=state.nodes.filter(node=>node.enabled&&catalog.facilities[node.kind]?.output).map(node=>{
+      const potential=maxProductionRate(state,node,catalog),actual=productionActivity(node).rate;
+      return {node,ratio:potential>0?actual/potential:1,reason:limitingReasons(node)[0]?.label||'Waiting for production'};
+    }).filter(v=>v.ratio<0.95).sort((a,b)=>a.ratio-b.ratio).slice(0,8);
+    return constrained.length?`<div class="factory-health-list">${constrained.map(v=>`<button data-action="inspect" data-id="${v.node.id}" title="Inspect limiting factors"><span>${safe(nodeDef(v.node).name)} · ${safe(v.node.id)}</span><strong class="warning">${fmt(v.ratio*100,0)}% · ${safe(v.reason)}</strong></button>`).join('')}</div>`:'<p class="tiny muted">No production constraints detected. Select a machine for input-level details.</p>';
+  })()}<div class="divider"></div>${totals.map(([id,value])=>`<div class="inventory-row"><span>${safe(catalog.resources[id].name)}</span><strong>${fmt(value)}</strong></div>`).join('')}<p class="muted tiny">*Each isolated grid is calculated separately. Select a node to inspect its actual supply.</p>`;
 }
 function renderLayouts(){
   $('#layouts').innerHTML=state.layouts.length?state.layouts.map((layout,i)=>`<div class="route-row"><span>${safe(layout.name)} <small>${layout.nodes.length} facilities</small></span><button data-action="layout-load" data-id="${i}">Build</button><button data-action="layout-delete" data-id="${i}" title="Delete blueprint">×</button></div>`).join(''):'<p class="muted tiny">No saved layouts yet.</p>';
@@ -342,7 +372,11 @@ function handlePort(button){
 function userConfirm(message){return window.confirm(message);}
 function handleAction(button){
   const {action,id,kind}=button.dataset;
-  if(action==='select'){selection(id);return;}
+  if(action==='select'||action==='inspect'){
+    selection(id);
+    if(action==='inspect'){const node=byId(id),scroll=$('#editor-scroll');if(node)scroll.scrollTo({left:Math.max(0,(node.x+104)*canvasZoom-scroll.clientWidth/2),top:Math.max(0,(node.y+79)*canvasZoom-scroll.clientHeight/2),behavior:'smooth'});}
+    return;
+  }
   if(action==='build'){
     if(inTutorial()&&TUTORIAL_STEPS[state.tutorialStep]?.build!==kind)return;
     const scroll=$('#editor-scroll');
