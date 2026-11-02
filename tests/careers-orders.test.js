@@ -7,6 +7,7 @@ import {simulate,capacity,marketQuantity,completeContract} from '../src/core/eng
 import {factoryLevel,nextFactoryLevelXp,talentStatus,currentCareer,pointsEarned} from '../src/core/talents.js';
 import {buyTalent} from '../src/core/actions.js';
 import {researchStatus} from '../src/core/research.js';
+import {availableStock} from '../src/core/orders.js';
 
 const catalog={};
 for(const id of ['facilities','resources','talents','research','contracts','investments'])
@@ -44,7 +45,8 @@ test('warehouses reserve every resource and allow production routing',()=>{
  s.edges.push({id:'p1',from:'n1',to:'n2',resource:'power'},{id:'m1',from:'n2',to:'store',resource:'ore'});
  s.onboarding=true;simulate(s,catalog,8);
  assert.ok(warehouse.buffer.ore>0);
- assert.equal(marketQuantity(s,'ore'),warehouse.buffer.ore);
+ assert.equal(availableStock(s,'ore'),warehouse.buffer.ore);
+ assert.equal(marketQuantity(s,'ore'),0,'A warehouse does not sell without a terminal');
 });
 test('contracts spawn and expire during play but not while offline',()=>{
  const s=defaultState();s.onboarding=true;
