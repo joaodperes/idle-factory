@@ -176,36 +176,69 @@ function limitingReasons(node){
   const diagnostic=productionDiagnostics(node);
   return Object.entries(diagnostic.limits).sort((a,b)=>b[1]-a[1]).map(([key,seconds])=>({key,label:limitName(key),seconds}));
 }
+function diagnosis(node){
+  const def=nodeDef(node),power=gridStatus(state,catalog).efficiency.get(node.id)||0;
+  const rate=productionActivity(node).rate,ideal=maxProductionRate(state,node,catalog);
+  const inventory=def.output==='data'?0:(node.buffer[def.output]||0);
+  const maxStock=capacity(state,node),outputName=catalog.resources[def.output]?.name||def.output;
+  if(!node.enabled)return {title:'Machine paused',action:'Select Resume to restart production.',type:'warning'};
+  if(!def.output)return {title:def.power?'Electricity generator':'Trade Terminal',action:def.power?'Connect its yellow output to the power inputs of consuming machines.':'Connect a production output to the terminal to sell or reserve goods.',type:'okay'};
+  if(def.output!=='data'&&inventory>=maxStock-0.1){
+    const downstream=state.edges.some(e=>e.from===node.id&&e.resource===def.output);
+    return {title:outputName+' storage full',action:downstream
+      ?'The next machine or terminal is not taking enough '+outputName+'. Check or upgrade its capacity, or connect another buyer.'
+      :'Connect this output to a Trade Terminal or another facility that uses '+outputName+'.',type:'warning'};
+  }
+  if(power<0.01)return {title:'No electricity',action:'Connect a Power Station or Solar Array directly to this machine’s yellow input.',type:'warning'};
+  if(power<0.99)return {title:'Not enough electricity',action:'Upgrade a generator or connect another generator to the same electrical network.',type:'warning'};
+  const limit=limitingReasons(node).find(r=>r.key!=='offline');
+  if(limit?.key&&limit.key!=='storage'&&limit.key!=='power'){
+    const name=catalog.resources[limit.key]?.name||limit.key;
+    const linked=state.edges.some(e=>e.to===node.id&&e.resource===limit.key);
+    return {title:'Not enough '+name,action:linked
+      ?'Increase '+name+' production upstream, upgrade its output capacity, or add a new input route.'
+      :'Connect a machine producing '+name+' to this facility’s input.',type:'warning'};
+  }
+  if(rate<ideal*0.95&&limit)return {title:limit.label,action:'Check the output connection and the downstream machine’s storage.',type:'warning'};
+  return {title:'Production running normally',action:'No immediate changes needed. This machine has sufficient inputs and power.',type:'okay'};
+}
 function renderInspector(){
-  const area=$('#inspector');const node=byId(state.selectedNode);
+  const area=$('#inspector'),node=byId(state.selectedNode);
   if(inTutorial()){area.innerHTML='';return;}
-  if(!node){area.innerHTML='<div class="card"><h2>Facility inspector</h2><p class="muted">Select a facility to inspect it.</p></div>';return;}
-  const def=nodeDef(node),tracked=new Set([...Object.keys(def.inputs||{}),...(def.output&&def.output!=='data'?[def.output]:[]),...Object.entries(node.buffer).filter(([,qty])=>qty>0.005).map(([resource])=>resource)]),stock=[...tracked].map(resource=>`<div class="inventory-row"><span>${safe(catalog.resources[resource]?.name||resource)}${def.output===resource?' (output)':''}</span><strong>${fmt(node.buffer[resource]||0)}</strong></div>`).join('')||'<p class="muted tiny">No materials buffered</p>';
-  const inputs=Object.keys(def.inputs||{}).map(r=>`${catalog.resources[r].name}: ${fmt(def.inputs[r])}/s`).join(' · ');
+  if(!node){area.innerHTML='<div class="card"><h2>Facility inspector</h2><p class="muted">Select a machine to see its next useful action.</p></div>';return;}
+  const def=nodeDef(node),status=diagnosis(node),stats=productionActivity(node);
+  const ideal=maxProductionRate(state,node,catalog),util=ideal?Math.min(100,100*stats.rate/ideal):100;
   const upgrade=upgradeCost(node,catalog);
-  const currentPerformance=def.output?maxProductionRate(state,node,catalog):def.power?def.power*(1+0.5*(node.level-1))*(1+talentModifier(state,'powerGeneration')):capacity(state,node);
-  const nextPerformance=def.output?maxProductionRate(state,{...node,level:node.level+1},catalog):def.power?def.power*(1+0.5*node.level)*(1+talentModifier(state,'powerGeneration')):capacity(state,{...node,level:node.level+1});
-  const performanceUnit=def.output?' units/s':def.power?' power':' storage/item';
-  const routes=state.edges.filter(e=>e.from===node.id||e.to===node.id).map(e=>{
-    const other=byId(e.from===node.id?e.to:e.from);return `<div class="route-row"><span>${e.from===node.id?'→':'←'} ${safe(other?nodeDef(other).name:'Unknown')} <small>${safe(catalog.resources[e.resource]?.name||(e.resource==='power'?'Power grid':e.resource))}</small></span><button data-action="unlink" data-id="${e.id}" title="Disconnect">×</button></div>`;
-  }).join('')||'<p class="muted tiny">No connections yet</p>';
-  const diagnostic=productionDiagnostics(node),stats=productionActivity(node),reasons=limitingReasons(node);
-  const ideal=maxProductionRate(state,node,catalog),powerEff=gridStatus(state,catalog).efficiency.get(node.id)||0;
-  const util=ideal>0?Math.min(100,100*stats.rate/ideal):100;
-  const reasonsHtml=reasons.length?reasons.slice(0,4).map(reason=>`<div class="diagnostic-row warning"><span>${safe(reason.label)}</span><strong>${fmt(100*reason.seconds/Math.max(0.001,diagnostic.seconds),0)}% of last interval</strong></div>`).join(''):'<p class="tiny muted">No measured constraints yet, or the factory is running at its expected rate.</p>';
-  const inputDiagnostics=Object.entries(def.inputs||{}).map(([id,amount])=>{
-    const hasRoute=state.edges.some(edge=>edge.to===node.id&&edge.resource===id);
-    const supply=diagnostic.seconds>0?(diagnostic.received[id]||0)/diagnostic.seconds:0;
-    const target=def.rate?amount*ideal/def.rate*Math.max(0.2,1-talentModifier(state,'inputSavings')):amount;
-    const stored=node.buffer[id]||0;
-    return `<div class="diagnostic-row ${!hasRoute?'warning':''}"><span>${safe(catalog.resources[id]?.name||id)} ${hasRoute?'':'(no incoming link)'}</span><strong>${fmt(supply)}/${fmt(target)} per s · ${fmt(stored)} stored</strong></div>`;
+  const base=def.output?ideal:def.power?def.power*(1+0.5*(node.level-1))*(1+talentModifier(state,'powerGeneration')):capacity(state,node);
+  const improved=def.output?maxProductionRate(state,{...node,level:node.level+1},catalog):def.power?def.power*(1+0.5*node.level)*(1+talentModifier(state,'powerGeneration')):capacity(state,{...node,level:node.level+1});
+  const unit=def.output?' /s':def.power?' power':' items';
+  const inv=[...new Set([...Object.keys(def.inputs||{}),...(def.output&&def.output!=='data'?[def.output]:[])])];
+  const stock=inv.map(id=>`<div class="diagnostic-row"><span>${safe(catalog.resources[id]?.name||id)}</span><strong>${fmt(node.buffer[id]||0)} stored</strong></div>`).join('')||'<p class="muted tiny">No material inventory</p>';
+  const diagnostic=productionDiagnostics(node),power=gridStatus(state,catalog).efficiency.get(node.id)||0;
+  const rates=Object.entries(def.inputs||{}).map(([id,qty])=>{
+    const got=diagnostic.seconds?(diagnostic.received[id]||0)/diagnostic.seconds:0;
+    return `<div class="diagnostic-row"><span>${safe(catalog.resources[id]?.name||id)} received</span><strong>${fmt(got)}/s · ${fmt(node.buffer[id]||0)} stored</strong></div>`;
   }).join('');
-  const outStock=def.output&&def.output!=='data'?node.buffer[def.output]||0:0;
-  const outputUsage=def.output&&def.output!=='data'?`<div class="diagnostic-row"><span>Output buffer</span><strong>${fmt(outStock)} / ${fmt(capacity(state,node))}</strong></div>`:'';
-  const diagnosticHtml=def.output?`<div class="factory-diagnostics"><strong>Actual production: ${fmt(stats.rate)} / ${fmt(ideal)} per second (${fmt(util,0)}%)</strong><p class="tiny muted">Measured in the latest simulation. Limiters below are recorded while resources are consumed, not inferred from leftover stock.</p>${reasonsHtml}<div class="diagnostic-row ${powerEff<0.999?'warning':''}"><span>Electrical supply</span><strong>${fmt(powerEff*100,0)}% of demand</strong></div>${inputDiagnostics}${outputUsage}</div>`:'';
-  area.innerHTML=`<div class="card inspector-card"<div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2><p class="muted">${safe(def.description)}</p><div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${def.slots}</strong></div><div class="stat-pair"><span>Facilities of this type</span><strong>${state.nodes.filter(n=>n.kind===node.kind).length} / ${facilityLimit(state,node.kind)}</strong></div><div class="stat-pair"><span>Upgrade benefit</span><strong>${fmt(currentPerformance)} → ${fmt(nextPerformance)} ${performanceUnit}</strong></div><div class="stat-pair"><span>Inputs</span><strong>${inputs||'None'}</strong></div><div class="stat-pair"><span>Output</span><strong>${def.output?(catalog.resources[def.output]?.name||def.output): (def.power?`${def.power} electricity`:'None · receives goods')}</strong></div>
+  const routes=state.edges.filter(e=>e.from===node.id||e.to===node.id).map(e=>{
+    const linked=byId(e.from===node.id?e.to:e.from);
+    return `<div class="route-row"><span>${e.from===node.id?'→':'←'} ${safe(linked?nodeDef(linked).name:'Unknown')}<small>${safe(catalog.resources[e.resource]?.name||(e.resource==='power'?'Electricity':e.resource))}</small></span><button data-action="unlink" data-id="${e.id}" title="Disconnect line">×</button></div>`;
+  }).join('')||'<p class="tiny muted">No connections yet</p>';
+  const count=state.nodes.filter(n=>n.kind===node.kind).length;
+  area.innerHTML=`<div class="card inspector-card">
+    <div class="eyebrow">FACILITY INSPECTOR</div><h2>${def.icon} ${safe(def.name)}</h2>
+    <div class="machine-fix ${status.type}"><strong>${status.type==='warning'?'⚠ ':'✓ '}${safe(status.title)}</strong><p><b>What to do:</b> ${safe(status.action)}</p></div>
+    ${def.output?`<div class="machine-output-bar"><span>Production</span><strong>${fmt(util,0)}% of potential</strong></div><div class="machine-performance-track"><span style="width:${Math.max(0,util)}%"></span></div>`:''}
+    <div class="stat-pair"><span>Level</span><strong>${node.level} / 20</strong></div>
+    <div class="stat-pair"><span>Facility limit</span><strong>${count} / ${facilityLimit(state,node.kind)}</strong></div>
+    <div class="stat-pair"><span>Upgrade output</span><strong>${fmt(base)} → ${fmt(improved)}${unit}</strong></div>
     <div class="inspector-actions"><button data-action="upgrade" data-id="${node.id}" ${state.credits>=upgrade&&node.level<20?'':'disabled'}>↑ Upgrade · ${money(upgrade)}</button><button data-action="toggle" data-id="${node.id}">${node.enabled?'Pause':'Resume'}</button><button class="danger" data-action="demolish" data-id="${node.id}">Recycle</button></div>
-    <h3>Local inventory <small>${fmt(capacity(state,node))} cap per item</small></h3>${stock}${diagnosticHtml}<h3>Connections</h3>${routes}<p class="tiny muted">Only Power Stations and Solar Arrays have power outputs. Connect their yellow ports directly to each consuming machine.</p></div>`;
+    <details class="machine-advanced"><summary>Technical details, inventory & connections</summary>
+      <div class="diagnostic-row"><span>Production</span><strong>${fmt(stats.rate)} / ${fmt(ideal)} /s</strong></div>
+      <div class="diagnostic-row"><span>Electricity available</span><strong>${fmt(power*100,0)}%</strong></div>
+      <div class="diagnostic-row"><span>Output storage capacity</span><strong>${fmt(capacity(state,node))} items</strong></div>
+      ${stock}${rates}<h3>Connections</h3>${routes}
+    </details>
+  </div>`;
 }
 function renderOverview(){
   const g=gridStatus(state,catalog);
@@ -213,7 +246,7 @@ function renderOverview(){
   $('#overview').innerHTML=`<div class="stat-pair"><span>Generated power</span><strong>${fmt(g.supply)}/s</strong></div><div class="stat-pair"><span>Power demand</span><strong>${fmt(g.demand)}/s</strong></div><div class="stat-pair"><span>Grid efficiency</span><strong>${g.demand?fmt(Math.min(100,g.supply/g.demand*100),0):100}%*</strong></div><div class="stat-pair"><span>Warehoused goods</span><strong>${fmt(totals.reduce((n,[,v])=>n+v,0))}</strong></div><div class="stat-pair"><span>Factory Level</span><strong>${factoryLevel(state)}</strong></div><div class="stat-pair"><span>Industrial slots</span><strong>${usedSlots(state,catalog)} / ${totalSlots(state)}</strong></div><div class="stat-pair"><span>Next level capacity gain</span><strong>Level ${nextCapacityLevel(state)??'MAX'} (+2 slots)</strong></div><div class="stat-pair"><span>Permanent capacity investment</span><strong>+${3*(state.investments.infrastructure||0)} slots</strong></div><p class="tiny muted">Gain Factory XP from sales and contracts, earn +2 industrial slots every 3 levels, or buy Industrial Estate with investors. Certain talents add more slots.</p><div class="divider"></div><h3>Production bottlenecks</h3>${(()=>{
     const constrained=state.nodes.filter(node=>node.enabled&&catalog.facilities[node.kind]?.output).map(node=>{
       const potential=maxProductionRate(state,node,catalog),actual=productionActivity(node).rate;
-      return {node,ratio:potential>0?actual/potential:1,reason:limitingReasons(node)[0]?.label||'Waiting for production'};
+      return {node,ratio:potential>0?actual/potential:1,reason:diagnosis(node).title};
     }).filter(v=>v.ratio<0.95).sort((a,b)=>a.ratio-b.ratio).slice(0,8);
     return constrained.length?`<div class="factory-health-list">${constrained.map(v=>`<button data-action="inspect" data-id="${v.node.id}" title="Inspect limiting factors"><span>${safe(nodeDef(v.node).name)} · ${safe(v.node.id)}</span><strong class="warning">${fmt(v.ratio*100,0)}% · ${safe(v.reason)}</strong></button>`).join('')}</div>`:'<p class="tiny muted">No production constraints detected. Select a machine for input-level details.</p>';
   })()}<div class="divider"></div>${totals.map(([id,value])=>`<div class="inventory-row"><span>${safe(catalog.resources[id].name)}</span><strong>${fmt(value)}</strong></div>`).join('')}<p class="muted tiny">*Each isolated grid is calculated separately. Select a node to inspect its actual supply.</p>`;
