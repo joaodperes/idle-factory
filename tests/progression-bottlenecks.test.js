@@ -47,11 +47,11 @@ test('branches are not mutually exclusive but their late doctrine choices are',(
   assert.ok(talentModifier(s,'inputSavings')>0);
   assert.match(buyTalent(s,catalog,'turbo_mode'),/Mutually exclusive/);
 });
-test('respec refunds all points and disables non-metal auto-sales',()=>{
+test('respec refunds all points without changing user auto-sale settings',()=>{
   const s=advanced();s.talents={lean:2,precision:2,automation:1};s.autoSell={metal:true,parts:true};
   assert.equal(respecTalents(s),null);
   assert.equal(freeTalentPoints(s),pointsEarned(s));
-  assert.equal(s.autoSell.parts,false);
+  assert.equal(s.autoSell.parts,true);
 });
 test('legacy specialization saves preserve earlier investments and convert relayed electricity',()=>{
   const original=operating();
