@@ -111,8 +111,8 @@ export function routeConnection(from,to,facilities){
   const start=point(from.x+STUB,from.y),end=point(to.x-STUB,to.y);
   // Obstacles and endpoints define routing bounds, not the original viewport.
   const bounds={
-    minX:Math.min(0,start.x-60,end.x-60,...rects.map(r=>r.left-60)),
-    minY:Math.min(0,start.y-60,end.y-60,...rects.map(r=>r.top-60)),
+    minX:Math.min(0,start.x,end.x),
+    minY:Math.min(0,start.y,end.y),
     maxX:Math.max(2500,start.x+80,end.x+80,...rects.map(r=>r.right+80)),
     maxY:Math.max(1650,start.y+80,end.y+80,...rects.map(r=>r.bottom+80))
   };
