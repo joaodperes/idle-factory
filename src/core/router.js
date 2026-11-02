@@ -1,5 +1,5 @@
 /** Obstacle-aware orthogonal routing for factory connections, in unscaled canvas coordinates. */
-const STEP=20, MARGIN=12, STUB=26, MAX_X=2500, MAX_Y=1650;
+const STEP=20, MARGIN=12, STUB=26;
 const point=(x,y)=>({x,y});
 const close=(a,b)=>Math.abs(a.x-b.x)<0.01&&Math.abs(a.y-b.y)<0.01;
 const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
@@ -24,22 +24,22 @@ function simplify(points){
   }
   return clean;
 }
-function candidatePaths(a,b,rects){
+function candidatePaths(a,b,rects,bounds){
   const middle=(a.x+b.x)/2;
   const candidates=[
     [a,point(b.x,a.y),b],
     [a,point(a.x,b.y),b],
     [a,point(middle,a.y),point(middle,b.y),b]
   ];
-  const rows=[...new Set([Math.max(0,Math.min(a.y,b.y,...rects.map(r=>r.top))-STEP),
-    Math.min(MAX_Y,Math.max(a.y,b.y,...rects.map(r=>r.bottom))+STEP),
-    ...rects.flatMap(r=>[Math.max(0,r.top-STEP),Math.min(MAX_Y,r.bottom+STEP)])])];
-  const cols=[...new Set([Math.max(0,Math.min(a.x,b.x,...rects.map(r=>r.left))-STEP),
-    Math.min(MAX_X,Math.max(a.x,b.x,...rects.map(r=>r.right))+STEP),
-    ...rects.flatMap(r=>[Math.max(0,r.left-STEP),Math.min(MAX_X,r.right+STEP)])])];
+  const rows=[...new Set([Math.max(bounds.minY,Math.min(a.y,b.y,...rects.map(r=>r.top))-STEP),
+    Math.min(bounds.maxY,Math.max(a.y,b.y,...rects.map(r=>r.bottom))+STEP),
+    ...rects.flatMap(r=>[Math.max(bounds.minY,r.top-STEP),Math.min(bounds.maxY,r.bottom+STEP)])])];
+  const cols=[...new Set([Math.max(bounds.minX,Math.min(a.x,b.x,...rects.map(r=>r.left))-STEP),
+    Math.min(bounds.maxX,Math.max(a.x,b.x,...rects.map(r=>r.right))+STEP),
+    ...rects.flatMap(r=>[Math.max(bounds.minX,r.left-STEP),Math.min(bounds.maxX,r.right+STEP)])])];
   for(const y of rows)candidates.push([a,point(a.x,y),point(b.x,y),b]);
   for(const x of cols)candidates.push([a,point(x,a.y),point(x,b.y),b]);
-  const valid=candidates.filter(path=>path.every(p=>p.x>=0&&p.x<=MAX_X&&p.y>=0&&p.y<=MAX_Y)&&clearPath(path,rects));
+  const valid=candidates.filter(path=>path.every(p=>p.x>=bounds.minX&&p.x<=bounds.maxX&&p.y>=bounds.minY&&p.y<=bounds.maxY)&&clearPath(path,rects));
   valid.sort((p,q)=>p.reduce((sum,v,i)=>sum+(i?distance(v,p[i-1]):0),0)+p.length*9-
     (q.reduce((sum,v,i)=>sum+(i?distance(v,q[i-1]):0),0)+q.length*9));
   return valid[0]||null;
@@ -50,8 +50,8 @@ class Heap{
   pop(){const a=this.values,top=a[0],last=a.pop();if(a.length){let i=0;while(true){let c=i*2+1;if(c>=a.length)break;if(c+1<a.length&&a[c+1].f<a[c].f)c++;if(a[c].f>=last.f)break;a[i]=a[c];i=c;}a[i]=last;}return top;}
   get length(){return this.values.length;}
 }
-function gridRoute(a,b,rects){
-  const blocked=p=>p.x<0||p.y<0||p.x>MAX_X||p.y>MAX_Y||
+function gridRoute(a,b,rects,bounds){
+  const blocked=p=>p.x<bounds.minX||p.y<bounds.minY||p.x>bounds.maxX||p.y>bounds.maxY||
     rects.some(r=>p.x>=r.left&&p.x<=r.right&&p.y>=r.top&&p.y<=r.bottom);
   function entrances(origin){
     const cx=Math.round(origin.x/STEP),cy=Math.round(origin.y/STEP);
@@ -109,7 +109,14 @@ function gridRoute(a,b,rects){
 export function routeConnection(from,to,facilities){
   const rects=facilities.map(inflate);
   const start=point(from.x+STUB,from.y),end=point(to.x-STUB,to.y);
-  const center=candidatePaths(start,end,rects)||gridRoute(start,end,rects);
+  // Obstacles and endpoints define routing bounds, not the original viewport.
+  const bounds={
+    minX:Math.min(0,start.x,end.x),
+    minY:Math.min(0,start.y,end.y),
+    maxX:Math.max(2500,start.x+80,end.x+80,...rects.map(r=>r.right+80)),
+    maxY:Math.max(1650,start.y+80,end.y+80,...rects.map(r=>r.bottom+80))
+  };
+  const center=candidatePaths(start,end,rects,bounds)||gridRoute(start,end,rects,bounds);
   if(!center)return []; // The destination is physically obstructed: never draw through another card.
   return simplify([from,...center,to]);
 }

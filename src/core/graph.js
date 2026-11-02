@@ -50,7 +50,7 @@ export function addFacility(state,catalog,kind,x=450,y=450){
   const cost=nodeCost(kind,state,catalog);
   if(state.credits<cost)return 'Not enough credits';
   state.credits-=cost;
-  const node={id:`n${state.nextId++}`,kind,x:Math.max(0,Math.min(2300,Math.round(x))),y:Math.max(0,Math.min(1400,Math.round(y))),level:1,enabled:true,buffer:{}};
+  const node={id:`n${state.nextId++}`,kind,x:Math.max(0,Math.round(x)),y:Math.max(0,Math.round(y)),level:1,enabled:true,buffer:{}};
   state.nodes.push(node);state.selectedNode=node.id;
   return null;
 }
@@ -67,7 +67,7 @@ export function removeFacility(state,catalog,id){
 }
 export function moveFacility(state,id,x,y){
   const node=state.nodes.find(n=>n.id===id);
-  if(node){node.x=Math.max(0,Math.min(2300,Math.round(x)));node.y=Math.max(0,Math.min(1400,Math.round(y)));}
+  if(node){node.x=Math.max(0,Math.round(x));node.y=Math.max(0,Math.round(y));}
 }
 
 /**
