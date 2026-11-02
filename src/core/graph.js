@@ -1,3 +1,4 @@
+import {researchModifier} from './research.js';
 import {factoryLevel,talentModifier} from './talents.js';
 /** Limits preserve specialization without deleting existing saved facilities. */
 export const BASE_FACILITY_LIMITS=Object.freeze({generator:2,solar:2,mine:3,smelter:3,press:2,etcher:2,assembler:1,lab:1,market:2});
@@ -11,7 +12,7 @@ export function nextCapacityMilestone(state){
   return CAPACITY_MILESTONES.find(revenue=>revenue>state.runRevenue)??null;
 }
 export function usedSlots(state,catalog){return state.nodes.reduce((sum,node)=>sum+(catalog.facilities[node.kind]?.slots||0),0);}
-export function totalSlots(state){return 26+2*Math.floor((factoryLevel(state)-1)/3)+3*(state.investments.infrastructure||0)+talentModifier(state,'slots');}
+export function totalSlots(state){return 26+2*Math.floor((factoryLevel(state)-1)/3)+3*(state.investments.infrastructure||0)+talentModifier(state,'slots')+researchModifier(state,'slots');}
 export function nextCapacityLevel(state){const lvl=factoryLevel(state);return lvl>=60?null:4+3*Math.floor((lvl-1)/3);}
 export function nodeCost(kind,state,catalog){
   const b=catalog.facilities[kind];
