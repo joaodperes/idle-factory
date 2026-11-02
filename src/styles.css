@@ -34,3 +34,5 @@
 
 /* Zooming scales the world only; all surrounding UI stays at normal size. */
 .editor-toolbar{flex-wrap:wrap;min-height:46px}.editor-toolbar #editor-hint{flex:1;min-width:160px}.editor-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-left:auto}.canvas-zoom-controls{display:flex;align-items:center;gap:4px;background:#0c1928;border:1px solid #354b60;padding:3px;border-radius:8px}.canvas-zoom-controls button{min-width:29px;height:27px;padding:2px 7px;font-weight:700;border-radius:5px}.canvas-zoom-controls #zoom-fit{padding:2px 9px;font-size:11px}.canvas-zoom-controls output{font-variant-numeric:tabular-nums;text-align:center;min-width:45px;color:#d5ebf0;font-size:11px;font-weight:750}
+
+.metric .metric-note{color:#8ed8b0;margin-top:4px;font-size:10px}.metric.metric-warning .metric-note{color:#ffd07e}.metric.metric-warning strong{color:#ffe2a0}
