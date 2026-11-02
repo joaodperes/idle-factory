@@ -1,12 +1,12 @@
 {
   "name": "idle-factory",
-  "version": "1.3.0-dev.1",
+  "version": "1.4.0-dev.1",
   "private": true,
   "type": "module",
   "description": "Diagram-driven idle factory planning game for GitHub Pages",
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/main.js && node --check src/core/engine.js && node --check src/core/state.js && node --check src/core/actions.js && node --check src/core/graph.js && node --check src/core/tutorial.js && node --check src/core/talents.js && node --check src/core/router.js && node --check src/core/research.js && node --check src/core/hud.js",
+    "check": "node --check src/main.js && node --check src/core/engine.js && node --check src/core/state.js && node --check src/core/actions.js && node --check src/core/graph.js && node --check src/core/tutorial.js && node --check src/core/talents.js && node --check src/core/router.js && node --check src/core/research.js && node --check src/core/hud.js && node --check src/core/orders.js",
     "dev": "node scripts/dev-server.mjs"
   },
   "engines": {
