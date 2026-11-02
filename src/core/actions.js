@@ -1,6 +1,7 @@
 import {defaultState,operatingGraph} from './state.js';
 import {addFacility,removeFacility,addEdge,upgradeCost,usedSlots,totalSlots,nodeCost,normalizePowerEdges} from './graph.js';
-import {prestigeGain} from './engine.js';
+import {prestigeGain,earn} from './engine.js';
+import {researchStatus,researchLicensingCost,researchLicensingReward} from './research.js';
 import {talentStatus,findTalent,talentModifier,refundTalents} from './talents.js';
 export {addFacility,removeFacility,addEdge};
 export function upgradeFacility(state,catalog,id){
@@ -11,9 +12,20 @@ export function upgradeFacility(state,catalog,id){
 }
 export function buyResearch(state,catalog,id){
   const research=catalog.research[id];if(!research||state.research[id])return 'Already researched or unavailable';
-  if(research.requires.some(req=>!state.research[req]))return 'Missing prerequisite';
-  if(state.data<research.cost)return 'Insufficient research data';
+  const status=researchStatus(state,catalog,id);
+  if(!status.ready)return status.reason;
   state.data-=research.cost;state.research[id]=true;return null;
+}
+/** Ongoing R&D remains productive after completing the one-time technology tree. */
+export function publishResearch(state,catalog){
+  const earned=Object.values(state.research||{}).filter(Boolean).length;
+  if(earned<6)return 'Unlock six technologies to start licensing applied research';
+  const cost=researchLicensingCost(state),reward=researchLicensingReward(state);
+  if(state.data+1e-7<cost)return 'Need '+Math.ceil(cost-state.data)+' more Research Data';
+  state.data-=cost;
+  earn(state,reward,Math.round(0.3*reward));
+  state.researchLicenses=(state.researchLicenses||0)+1;
+  return null;
 }
 export function buyTalent(state,catalog,id){
   const status=talentStatus(state,catalog,id);
@@ -25,8 +37,7 @@ export function buyTalent(state,catalog,id){
 /** Free respec keeps players experimenting with different factory builds. */
 export function respecTalents(state){
   refundTalents(state);
-  // Disable Auto-Trading toggles if this build no longer has that perk.
-  for(const resource of Object.keys(state.autoSell||{}))if(resource!=='metal')state.autoSell[resource]=false;
+  // Auto-selling is available for every sellable resource, even after respec.
   return null;
 }
 export function buyInvestment(state,catalog,id){
