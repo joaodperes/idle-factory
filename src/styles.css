@@ -128,3 +128,21 @@
 .research-license small{font-size:11px}
 .research-license button{flex-shrink:0}
 @media(max-width:650px){.research-map{padding:0 3px}.research-node-grid{gap:0 2px}.research-node{padding:6px 3px}.research-node strong{font-size:10px}.research-node p{font-size:9px}.research-node button{font-size:9px}.research-license{flex-direction:column;align-items:stretch}}
+
+/* Decision-first machine inspector: one problem, one action, advanced data on demand. */
+.machine-fix{padding:12px 13px;margin:13px 0 15px;border-radius:10px;background:#193343;border:1px solid #507b84}
+.machine-fix.warning{border-color:#a17c48;background:#302a25}
+.machine-fix strong{display:block;color:#c5efda;font-size:14px}
+.machine-fix.warning strong{color:#ffda95}
+.machine-fix p{color:#d2e1ec;font-size:12px;line-height:1.5;margin:7px 0 0}
+.machine-fix b{color:#f2f7fc}
+.machine-output-bar{display:flex;justify-content:space-between;align-items:center;color:#adc3d4;font-size:11px}
+.machine-output-bar strong{color:#ecf5f9;font-size:12px}
+.machine-performance-track{height:7px;border-radius:8px;overflow:hidden;background:#33495d;margin:6px 0 15px}
+.machine-performance-track span{display:block;height:100%;background:#62b9a5}
+.machine-advanced{margin-top:15px;border-top:1px solid #3c5269;padding-top:12px}
+.machine-advanced summary{cursor:pointer;font-size:12px;color:#c4dfed;font-weight:650;padding:7px 0}
+.machine-advanced[open] summary{margin-bottom:10px}
+.factory-node.power-alert-focus{border-color:#ffcc7e!important;box-shadow:0 0 0 3px #ffaa4b80,0 0 26px 5px #ffaa4b3d!important;z-index:3}
+#overview .factory-health-list{margin-bottom:14px}
+#overview .factory-health-list button{white-space:normal}
