@@ -33,7 +33,7 @@ The source files can be edited while the server runs; reload the browser to pick
 
 ## New-player experience (development branch)
 
-A fresh save begins with just a Power Station, an Ore Extractor and sufficient starting credits to complete a seven-step guided factory setup. The walkthrough waits for each actual gameplay action: power the extractor, buy a smelter, send ore, power the smelter, buy a trade terminal, connect metal and observe a first sale. Tutorial controls highlight exactly the next port or build button, with a focus button to navigate the canvas. Other tabs and advanced panels appear on completion (or if the player skips).
+A fresh save begins with just a Power Station, an Ore Extractor and sufficient starting credits to complete an eight-step guided factory setup. The walkthrough waits for each actual gameplay action: power the extractor, buy a smelter, send ore, power the smelter, buy a trade terminal, connect metal and observe a first sale. Tutorial controls highlight exactly the next port or build button, with a focus button to navigate the canvas. Other tabs and advanced panels appear on completion (or if the player skips).
 
 Already have a factory? Click **? → Start guided walkthrough** to practice in a temporary factory; the original saved factory is restored when you exit. In-progress and imported v3 saves remain compatible. A company prestige reset starts with a working basic line rather than forcing tutorial replay.
 
@@ -41,7 +41,13 @@ The link renderer uses live DOM measurements of input and output port centers, n
 
 ## Game mechanics
 
-- **Factory:** graph of machines with typed material and power ports, throughput limits, input and output buffers and isolated electrical networks.
+- **Factory:** graph of machines with typed material and power ports, throughput limits, input and output buffers and isolated electrical networks. Power indicators show **available / generated** power, with separate warnings for disconnected grids.
+- **Power relay:** only power stations and solar arrays generate electricity; a powered processing machine can relay its electrical grid using its hollow yellow output port.
+- **Production diagnostics:** machine cards display *measured / ideal* production per second and the named output stock. Inspect a machine to see required inputs, even when empty, and the benefit of its next upgrade.
+- **Facility limits:** per-type caps begin at 1–3 machines depending on category; each reached company-revenue milestone at 5k, 20k, 80k, or 300k adds a slot of each type. Every two permanent **Industrial Estate** levels add another slot of each type, alongside the normal global capacity bonus. Existing machines above a newly introduced cap are not deleted.
+- **Upgrade economy:** level-ups add 50% of base production per level and 25% storage per item; generators add 50% of base power per level. Initial upgrade cost is 55% of a new facility's base cost and rises per level. Duplicates cost +28% multiplicatively beginning with the second copy.
+- **Research Lab:** unlocks at 4,000 company-run revenue and costs 3,500 credits. Connect Devices (0.1/s) and power (3 units) to create research data.
+- **Diagram routing:** lines are routed outside factory cards using orthogonal paths with rounded corners and update when dragging or zooming. If another card physically blocks a port, a warning marker replaces an impossible route until the cards are separated.
 - **Contracts and market:** sell or reserve goods, fulfill orders, earn credits, and react to changing prices.
 - **Management:** select an Industrial Engineer, Automation Architect or Commercial Strategist specialization and purchase talents as XP increases.
 - **Research and investors:** unlock research through a working laboratory; reset the company for lasting angel-investor upgrades and reusable paid factory blueprints.
