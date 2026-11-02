@@ -52,7 +52,7 @@ test('construction spends credits and respects unlocks and capacity',()=>{
  assert.match(addEdge(s,catalog,'n2',s.selectedNode,'ore'),/cannot consume/);
 });
 test('talents cost level points, and research needs data',()=>{
- const s=defaultState();assert.match(buyTalent(s,catalog,'lean'),/Earn management/);
+ const s=defaultState();assert.match(buyTalent(s,catalog,'lean'),/Unlock at Factory Level 5/);
  s.xp=5000;assert.ok(managerLevel(s)>1);assert.ok(availableTalentPoints(s)>0);
  assert.equal(buyTalent(s,catalog,'lean'),null);assert.equal(s.talents.lean,1);
  assert.match(buyResearch(s,catalog,'logistics'),/Insufficient/);
