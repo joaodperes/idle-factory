@@ -74,7 +74,7 @@ test('career talents need Factory Level 5 and available points; research needs d
  s.xp=5000;assert.ok(managerLevel(s)>=5);assert.ok(availableTalentPoints(s)>0);
  assert.equal(buyTalent(s,catalog,'engineer_t1_c1'),null);
  assert.equal(s.talents.engineer_t1_c1,1);
- assert.match(buyResearch(s,catalog,'logistics'),/Insufficient/);
+ assert.match(buyResearch(s,catalog,'logistics'),/Need 12 more Research Data/);
  s.data=20;assert.equal(buyResearch(s,catalog,'logistics'),null);
 });
 test('investor reset retains permanent upgrades and layouts',()=>{
