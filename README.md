@@ -37,7 +37,7 @@ A fresh save begins with just a Power Station, an Ore Extractor and sufficient s
 
 Already have a factory? Click **? → Start guided walkthrough** to practice in a temporary factory; the original saved factory is restored when you exit. In-progress and imported v3 saves remain compatible. A company prestige reset starts with a working basic line rather than forcing tutorial replay.
 
-The link renderer uses live DOM measurements of input and output port centers, not approximate pixel offsets. Endpoints remain aligned when a node is dragged, resized, or scrolled.
+The diagram uses live DOM measurements of input and output port centers, including zoom-aware obstacle routing. No consumer machine exposes a power output. Endpoints remain aligned when a node is dragged, resized, or scrolled.
 
 ## Reading the resource HUD
 
@@ -53,14 +53,17 @@ Each metric has an explanation on hover/focus; after the tutorial, most metrics 
 ## Game mechanics
 
 - **Factory:** graph of machines with typed material and power ports, throughput limits, input and output buffers and isolated electrical networks. Power indicators show **available / generated** power, with separate warnings for disconnected grids.
-- **Power relay:** only power stations and solar arrays generate electricity; a powered processing machine can relay its electrical grid using its hollow yellow output port.
+- **Direct power:** Only Power Stations and Solar Arrays have electricity output ports. Connect each consuming machine directly to a generator. Old machine-to-machine power relays are migrated into direct generator links when saves load.
 - **Production diagnostics:** machine cards display *measured / ideal* production per second and the named output stock. Inspect a machine to see required inputs, even when empty, and the benefit of its next upgrade.
-- **Facility limits:** per-type caps begin at 1–3 machines depending on category; each reached company-revenue milestone at 5k, 20k, 80k, or 300k adds a slot of each type. Every two permanent **Industrial Estate** levels add another slot of each type, alongside the normal global capacity bonus. Existing machines above a newly introduced cap are not deleted.
+- **Factory Level:** Company sales and contracts earn persistent Factory XP. Global industrial capacity starts at 26 slots and grows by +2 slots every three Factory Levels. Permanent **Industrial Estate** investments also grant +3 slots per rank, and select talents add more.
+- **Facility limits:** per-type caps begin at 1–3 machines. Each run-revenue milestone at 5k, 20k, 80k, or 300k adds one permitted machine of each type; every two Industrial Estate ranks add one more. Previously saved machines are never deleted for exceeding revised limits.
 - **Upgrade economy:** level-ups add 50% of base production per level and 25% storage per item; generators add 50% of base power per level. Initial upgrade cost is 55% of a new facility's base cost and rises per level. Duplicates cost +28% multiplicatively beginning with the second copy.
 - **Research Lab:** unlocks at 4,000 company-run revenue and costs 3,500 credits. Connect Devices (0.1/s) and power (3 units) to create research data.
 - **Diagram routing:** lines are routed outside factory cards using orthogonal paths with rounded corners and update when dragging or zooming. If another card physically blocks a port, a warning marker replaces an impossible route until the cards are separated.
 - **Contracts and market:** sell or reserve goods, fulfill orders, earn credits, and react to changing prices.
 - **Factory progression & talents:** earn Factory XP from sales and contracts. Factory Levels increase industrial capacity and unlock talent points at Level 5. Combine nodes across three connected talent trees, meeting per-tier level/spend prerequisites; certain doctrines are mutually exclusive and can be respeced.
+- **Production health:** Node cards show actual / ideal production, while the factory overview lists underperformers. The facility inspector reports measured input deliveries, shortages, power fraction and blocked output. Click a machine in the overview to locate it on the canvas.
+- **Contracts:** Local Construction requires 25 Refined Metal stored at a Trade Terminal. Turn metal Auto Sell off before delivering the order; contracts earn credits and Factory XP.
 - **Research and investors:** unlock research through a working laboratory; reset the company for lasting angel-investor upgrades and reusable paid factory blueprints.
 - **Saves:** browser localStorage under `idle-factory-save-v3`, plus portable, versioned JSON exports and imports. No account or cross-device sync.
 
