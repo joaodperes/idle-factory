@@ -42,11 +42,11 @@ test('first upgrades beat duplicate construction in cost per incremental factory
   assert.ok(cost/increase<duplicateCost/base);
   assert.ok(capacity(state,press)>120);
 });
-test('power bus relays are not power generators and a terminal cannot relay a grid',()=>{
+test('only generators may supply electricity; consumers and terminals cannot expose power outputs',()=>{
   const state=defaultState();
   state.nodes.push(makeNode('smelter','smelter',550,250));
   state.nodes.push(makeNode('market','market',850,250));
-  assert.equal(canConnect(state,catalog,'n2','smelter','power'),null);
+  assert.match(canConnect(state,catalog,'n2','smelter','power'),/Only Power Stations/);
   assert.match(canConnect(state,catalog,'market','smelter','power'),/Power links/);
   const g=gridStatus(state,catalog);
   assert.equal(g.supply,12);
