@@ -125,11 +125,11 @@ export const TALENT_EFFECTS={
 };
 export const TALENT_UNLOCK_LEVEL=5;
 export const TIER_RULES=Object.freeze({
-  1:{level:5,spent:0},
-  2:{level:9,spent:3},
-  3:{level:14,spent:7},
-  4:{level:20,spent:12},
-  5:{level:28,spent:17}
+  1:{spent:0},
+  2:{spent:3},
+  3:{spent:7},
+  4:{spent:12},
+  5:{spent:17}
 });
 export function factoryLevel(state){
   return Math.min(60,1+Math.floor(Math.sqrt(Math.max(0,state.xp||0)/60)));
@@ -161,7 +161,7 @@ export function talentStatus(state,catalog,id){
   if((state.talents[node.id]||0)>=node.max)return {enabled:false,reason:'Fully trained'};
   if(freeTalentPoints(state)<1)return {enabled:false,reason:'Earn a Factory Level for another talent point'};
   const rule=TIER_RULES[node.tier];
-  if(level<rule.level)return {enabled:false,reason:`Unlocks at Factory Level ${rule.level}`};
+  // Deeper tiers are gated by points spent in this tree, never by Factory Level.
   const spent=tree.nodes.reduce((sum,n)=>sum+(state.talents[n.id]||0),0);
   if(spent<rule.spent)return {enabled:false,reason:`Spend ${rule.spent-spent} more point(s) in this tree`};
   if(node.choice&&tree.nodes.some(peer=>peer.id!==node.id&&peer.choice===node.choice&&(state.talents[peer.id]||0)>0))
