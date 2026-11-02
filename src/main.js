@@ -274,17 +274,20 @@ function renderContracts(){
   const available=contractCapacity(state);
   const tiles=orders.map(order=>{
     const template=catalog.contracts.find(c=>c.id===order.templateId);
-    const resource=catalog.resources[order.resource],stock=availableStock(state,order.resource);
+    const resource=catalog.resources[order.resource],reserved=Math.min(order.amount,Math.max(0,order.reserved||0));
     const remaining=Math.max(0,Math.ceil(order.expiresAt-clock));
-    const ready=stock+0.0001>=order.amount&&remaining>0;
-    const pct=Math.min(100,100*stock/order.amount),timePct=100*remaining/Math.max(1,order.expiresAt-order.createdAt);
+    const ready=reserved+0.0001>=order.amount&&remaining>0;
+    const pct=Math.min(100,100*reserved/order.amount),timePct=100*remaining/Math.max(1,order.expiresAt-order.createdAt);
     const inactive=!!state.autoSell[order.resource];
+    const guidance=inactive
+      ? 'Auto Sell is ON. Previously reserved goods stay committed; turn it OFF to collect more.'
+      : 'Goods reaching a warehouse or terminal are secured for this order. Earlier deadlines have priority.';
     return `<article class="contract urgent-order ${remaining<45?'urgent':''}">
       <div class="contract-top"><div><div class="eyebrow">${safe(resource?.name||order.resource)} · LIVE CUSTOMER</div><h3>${safe(template?.title||'Commercial order')}</h3></div><strong class="value">+${money(order.reward*(1+talentModifier(state,'contracts')))}</strong></div>
       <div class="order-deadline"><strong>⏱ ${timeLabel(remaining)} remaining</strong><div class="progress"><span style="width:${timePct}%"></span></div></div>
-      <p class="contract-instructions">${inactive?'Auto Sell is ON. Disable it to reserve goods for this order.':'Goods are reserved. Supply the warehouse or Trade Terminal.'}</p>
+      <p class="contract-instructions">${guidance}</p>
       <div class="progress"><span style="width:${pct}%"></span></div>
-      <div class="contract-bottom"><span>${fmt(stock)} / ${fmt(order.amount)} ${safe(resource?.name||'goods')} available</span><button data-action="contract" data-id="${order.id}" ${ready?'':'disabled'}>${ready?'Deliver for bonus':'Collect goods'}</button></div>
+      <div class="contract-bottom"><span>${fmt(reserved)} / ${fmt(order.amount)} ${safe(resource?.name||'goods')} reserved</span><button data-action="contract" data-id="${order.id}" ${ready?'':'disabled'}>${ready?'Deliver for bonus':'Collect goods'}</button></div>
     </article>`;
   }).join('');
   $('#contracts-list').innerHTML=`<div class="orders-summary"><strong>${orders.length} / ${available} active customer orders</strong><small>${stats.fulfilled} fulfilled · ${stats.expired} expired · New offers arrive during active play</small></div>${tiles||'<p class="muted">Waiting for incoming orders… Keep production running and check back shortly.</p>'}`;
