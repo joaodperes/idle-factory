@@ -31,15 +31,15 @@ function candidatePaths(a,b,rects){
     [a,point(a.x,b.y),b],
     [a,point(middle,a.y),point(middle,b.y),b]
   ];
-  const rows=[...new Set([Math.min(a.y,b.y,...rects.map(r=>r.top))-STEP,
-    Math.max(a.y,b.y,...rects.map(r=>r.bottom))+STEP,
-    ...rects.flatMap(r=>[r.top-STEP,r.bottom+STEP])])];
-  const cols=[...new Set([Math.min(a.x,b.x,...rects.map(r=>r.left))-STEP,
-    Math.max(a.x,b.x,...rects.map(r=>r.right))+STEP,
-    ...rects.flatMap(r=>[r.left-STEP,r.right+STEP])])];
+  const rows=[...new Set([Math.max(0,Math.min(a.y,b.y,...rects.map(r=>r.top))-STEP),
+    Math.min(MAX_Y,Math.max(a.y,b.y,...rects.map(r=>r.bottom))+STEP),
+    ...rects.flatMap(r=>[Math.max(0,r.top-STEP),Math.min(MAX_Y,r.bottom+STEP)])])];
+  const cols=[...new Set([Math.max(0,Math.min(a.x,b.x,...rects.map(r=>r.left))-STEP),
+    Math.min(MAX_X,Math.max(a.x,b.x,...rects.map(r=>r.right))+STEP),
+    ...rects.flatMap(r=>[Math.max(0,r.left-STEP),Math.min(MAX_X,r.right+STEP)])])];
   for(const y of rows)candidates.push([a,point(a.x,y),point(b.x,y),b]);
   for(const x of cols)candidates.push([a,point(x,a.y),point(x,b.y),b]);
-  const valid=candidates.filter(path=>clearPath(path,rects));
+  const valid=candidates.filter(path=>path.every(p=>p.x>=0&&p.x<=MAX_X&&p.y>=0&&p.y<=MAX_Y)&&clearPath(path,rects));
   valid.sort((p,q)=>p.reduce((sum,v,i)=>sum+(i?distance(v,p[i-1]):0),0)+p.length*9-
     (q.reduce((sum,v,i)=>sum+(i?distance(v,q[i-1]):0),0)+q.length*9));
   return valid[0]||null;
