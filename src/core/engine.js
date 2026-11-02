@@ -1,6 +1,9 @@
 /** Deterministic discrete-time factory engine. All production flows through saved graph edges. */
 const OUTPUT_LIMIT=120;
 const recentMarketSales=new WeakMap();
+const recentProduction=new WeakMap();
+/** Measured output during the last simulation update, not a theoretical catalog rate. */
+export function productionActivity(node){return recentProduction.get(node)||{produced:0,seconds:0,rate:0};}
 /** Sales made during the most recent simulation update (not cumulative inventory). */
 export function marketActivity(node){return recentMarketSales.get(node)||{units:0,revenue:0};}
 const BASE_LINK_RATE=3;
@@ -96,7 +99,7 @@ function produceOneSecond(state,catalog,dt,offlineFactor){
     const def=defs[node.kind];
     if(!node.enabled||!def||!def.output)continue;
     const efficiencyFactor=efficiency.get(node.id)||0;
-    const speed=(1+0.25*(node.level-1)+0.15*getTalent(state,'precision'))*(getResearch(state,'robotics')?1.5:1);
+    const speed=(1+0.4*(node.level-1)+0.15*getTalent(state,'precision'))*(getResearch(state,'robotics')?1.5:1);
     let factor=speed*efficiencyFactor*offlineFactor;
     const inputs=def.inputs||{};
     for(const [resource,need] of Object.entries(inputs)){
@@ -108,15 +111,26 @@ function produceOneSecond(state,catalog,dt,offlineFactor){
     for(const [resource,need] of Object.entries(inputs))node.buffer[resource]=Math.max(0,(node.buffer[resource]||0)-need*dt*(1-0.1*getTalent(state,'lean'))*factor);
     const output=def.rate*dt*factor*(1+0.1*(state.investments.engineering||0))*(getResearch(state,'yield')?1.25:1);
     if(def.output==='data'){state.data+=output;}else node.buffer[def.output]=(node.buffer[def.output]||0)+output;
+    const activity=productionActivity(node);
+    recentProduction.set(node,{produced:activity.produced+output,seconds:activity.seconds,rate:activity.rate});
   }
   for(const id of Object.keys(catalog.resources))if(state.autoSell[id]&&catalog.resources[id].price>0&&(id==='metal'||(state.specialization==='architect'&&getTalent(state,'automation'))))sell(state,catalog,id,Infinity);
   state.elapsed+=dt;state.runElapsed+=dt;
 }
 export function simulate(state,catalog,seconds,{offline=false}={}){
-  for(const node of state.nodes)if(node.kind==='market')recentMarketSales.set(node,{units:0,revenue:0});
+  for(const node of state.nodes){
+    if(node.kind==='market')recentMarketSales.set(node,{units:0,revenue:0});
+    if(catalog.facilities[node.kind]?.output)recentProduction.set(node,{produced:0,seconds:0,rate:0});
+  }
   let duration=Math.max(0,Math.min(offline?8*3600:3600,seconds));
   const efficiency=offline?(getResearch(state,'offline')?1:0.5):1;
+  const simulated=duration;
   while(duration>1e-7){const dt=Math.min(1,duration);produceOneSecond(state,catalog,dt,efficiency);duration-=dt;}
+  for(const node of state.nodes){
+    const def=catalog.facilities[node.kind];if(!def?.output)continue;
+    const activity=productionActivity(node);
+    recentProduction.set(node,{produced:activity.produced,seconds:simulated,rate:simulated>0?activity.produced/simulated:0});
+  }
 }
 export function prestigeGain(state){return Math.max(0,Math.floor(Math.sqrt(state.runRevenue/2500)+state.runContracts*0.35));}
 export function companyValue(state,catalog){return state.credits+state.nodes.reduce((sum,n)=>sum+catalog.facilities[n.kind].cost*n.level,0)+state.runRevenue*0.4;}
