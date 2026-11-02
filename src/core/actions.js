@@ -1,7 +1,7 @@
 import {defaultState,operatingGraph} from './state.js';
 import {addFacility,removeFacility,addEdge,upgradeCost,usedSlots,totalSlots,nodeCost,normalizePowerEdges} from './graph.js';
 import {prestigeGain,earn} from './engine.js';
-import {researchStatus,researchLicensingCost,researchLicensingReward} from './research.js';
+import {researchStatus,researchLicensingCost,researchLicensingReward,effectiveResearchCost} from './research.js';
 import {talentStatus,findTalent,talentModifier,refundTalents,currentCareer,completedCareers} from './talents.js';
 export {addFacility,removeFacility,addEdge};
 export function upgradeFacility(state,catalog,id){
@@ -14,7 +14,7 @@ export function buyResearch(state,catalog,id){
   const research=catalog.research[id];if(!research||state.research[id])return 'Already researched or unavailable';
   const status=researchStatus(state,catalog,id);
   if(!status.ready)return status.reason;
-  state.data-=research.cost;state.research[id]=true;return null;
+  state.data-=effectiveResearchCost(state,research);state.research[id]=true;return null;
 }
 /** Ongoing R&D remains productive after completing the one-time technology tree. */
 export function publishResearch(state,catalog){
