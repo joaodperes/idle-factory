@@ -22,6 +22,7 @@ export function buildHudMetrics(state,catalog,grid,{fmt,money,tutorial=false}){
     detail:shortageGroups.length?'⚠ '+powerNote:powerNote,
     title:'Power demand / total generation. Each disconnected electrical grid is evaluated separately. Spare generation on one grid cannot power another grid.',
     tab:'factory',
+    action:shortageGroups.length?'power-alert':null,
     warning:shortageGroups.length>0||demand>supply+0.000001,
     progress:supply>0?Math.min(100,100*demand/supply):demand>0?100:0
   };
@@ -88,7 +89,8 @@ export function renderHudHtml(metrics){
     const tag=m.tab?'button':'div';
     const attrs=' class="metric'+(m.warning?' metric-warning':'')+(m.tab?' metric-action':'')+'"'
       +' title="'+escapeHtml(m.title)+'"'
-      +(m.tab?' type="button" data-tab="'+escapeHtml(m.tab)+'"':'');
+      +(m.tab?' type="button" data-tab="'+escapeHtml(m.tab)+'"':'')
+      +(m.action?' data-action="'+escapeHtml(m.action)+'"':'');
     const bar=m.progress===undefined?''
       :'<div class="metric-power-track" role="progressbar" aria-label="Power demand as percentage of generation" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(m.progress)+'"><span style="width:'+m.progress.toFixed(1)+'%"></span></div>';
     return '<'+tag+attrs+'><small>'+escapeHtml(m.label)+'</small><strong>'+escapeHtml(m.value)+'</strong>'+bar
