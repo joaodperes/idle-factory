@@ -66,7 +66,7 @@ function nodeMarkup(node){
   const materialIn=isMarket?['any']:Object.keys(def.inputs||{});
   const powerIn=def.demand>0;
   const out=def.output&&def.output!=='data'?def.output:null;
-  const port=(kind,resource,label)=>`<button class="port ${kind} ${resource==='power'?'power':'matter'}" data-port="${kind}" data-resource="${resource}" data-node="${node.id}" style="--port-color:${catalog.resources[resource]?.color||'#449eaa'}" title="${safe(label)}" aria-label="${safe(label)}"></button>`;
+  const port=(kind,resource,label)=>`<button class="port ${kind} ${resource==='power'?'power':'matter'} ${kind==='out'&&resource==='power'&&!def.power?'power-relay':''}" data-port="${kind}" data-resource="${resource}" data-node="${node.id}" style="--port-color:${catalog.resources[resource]?.color||'#449eaa'}" title="${safe(label)}" aria-label="${safe(label)}"></button>`;
   return `<div class="factory-node ${node.id===state.selectedNode?'selected':''} ${node.enabled?'':'disabled-node'}" data-node-id="${node.id}" style="left:${node.x}px;top:${node.y}px;--node-color:${def.color}">
     <div class="node-head" data-drag="${node.id}"><span class="node-icon">${def.icon}</span><span><strong>${safe(def.name)}</strong><small>UNIT ${node.id.toUpperCase()} · LV ${node.level}</small></span></div>
     <div class="node-body"><div class="node-throughput" data-node-rate="${node.id}">Calculating…</div><div class="node-buffer" data-node-stock="${node.id}">0 stored</div></div>
@@ -135,7 +135,8 @@ function updateNodeStats(){
       const shortInput=Object.entries(def.inputs||{}).find(([r,q])=>(n.buffer[r]||0)<q*0.8);
       const filled=def.output!=='data' && (n.buffer[def.output]||0)>capacity(state,n)-0.15;
       const rateText=`${fmt(actual)}/${fmt(maxRate)} ${def.output==='data'?'data':'units'}/s`;
-      label=power<0.99?`⚠ Power-limited · ${rateText}`
+      label=actual>=maxRate*0.95?`● ${rateText}`
+        :power<0.99?`⚠ Power-limited · ${rateText}`
         :filled?`⚠ Output full · ${rateText}`
         :shortInput?`◌ ${catalog.resources[shortInput[0]]?.name||shortInput[0]} limited · ${rateText}`
         :`● ${rateText}`;
