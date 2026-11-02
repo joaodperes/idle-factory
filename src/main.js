@@ -92,16 +92,23 @@ function drawLinks(){
     const rect=element.getBoundingClientRect();
     return {x:n.x,y:n.y,width:rect.width/canvasZoom,height:rect.height/canvasZoom};
   });
+  let blockedRoutes=0;
   const curves=state.edges.map(edge=>{
     const from=byId(edge.from),to=byId(edge.to);if(!from||!to)return '';
     const a=portCenter(from.id,'out',edge.resource),b=portCenter(to.id,'in',edge.resource);
     if(!a||!b)return '';
-    const d=routePath(routeConnection(a,b,obstacles));
+    const route=routeConnection(a,b,obstacles);
+    if(!route.length){
+      blockedRoutes++;
+      return `<circle cx="${a.x+15}" cy="${a.y}" r="6" fill="#eb8b97" stroke="#f6d9d9" stroke-width="1.5"><title>Route blocked by another machine. Move machines apart to reveal this connection.</title></circle>`;
+    }
+    const d=routePath(route);
     const color=edge.resource==='power'?'#f2db3d':(catalog.resources[edge.resource]?.color||'#63b9b7');
     const resourceName=edge.resource==='power'?'Power grid':(catalog.resources[edge.resource]?.name||edge.resource);
     return `<path d="${d}" class="edge-back"/><path d="${d}" stroke="${color}" stroke-width="${edge.resource==='power'?3.4:2.8}" ${edge.resource==='power'?'stroke-dasharray="9 6"':''} fill="none" stroke-linecap="round"/><path d="${d}" class="edge-hit" data-edge="${edge.id}" aria-label="Remove ${resourceName} connection"><title>${resourceName}: ${nodeDef(from).name} → ${nodeDef(to).name} (click to disconnect)</title></path>`;
   }).join('');
   svg.innerHTML=curves;
+  svg.dataset.blockedRoutes=String(blockedRoutes);
 }
 function renderGraph(){
   $('#nodes').innerHTML=state.nodes.map(nodeMarkup).join('');
@@ -141,7 +148,8 @@ function updateNodeStats(){
     if(a){a.textContent=label;a.title=label;}
     if(b){b.textContent=bufferText;b.title=bufferText;}
   }
-  $('#network-summary').textContent=`${state.nodes.length} facilities · ${state.edges.length} links`;
+  const blocked=Number($('#links').dataset.blockedRoutes||0);
+  $('#network-summary').textContent=`${state.nodes.length} facilities · ${state.edges.length} links${blocked?` · ⚠ ${blocked} obstructed (move cards)`:''}`;
 }
 function renderInspector(){
   const area=$('#inspector');const node=byId(state.selectedNode);
