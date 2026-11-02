@@ -78,6 +78,7 @@ test('safe import accepts v2 starter migration and rejects future saves',()=>{
  const s=sanitizeSave({version:2,parts:500,blueprints:3,meta:{meta_start:1},stats:{prestiges:2}},catalog);
  assert.equal(s.version,3);assert.equal(s.credits,500);assert.equal(s.angels,3);
  assert.equal(s.stats.resets,2);assert.equal(s.investments.capital,1);
+ assert.equal(s.nodes.length,4);assert.equal(s.edges.length,4);assert.equal(s.onboarding,true);
  assert.throws(()=>sanitizeSave({version:4},catalog),/newer/);
 });
 test('injected and invalid save data cannot become active game definitions',()=>{
@@ -122,4 +123,7 @@ test('tutorial step and older saves persist without destroying established facto
  const old={...workingFactory(),onboarding:true};delete old.tutorialStep;
  const restored=sanitizeSave(JSON.parse(JSON.stringify(old)),catalog);
  assert.equal(restored.onboarding,true);assert.equal(restored.nodes.length,4);
+ const prior={...workingFactory(),onboarding:false};delete prior.tutorialStep;
+ const upgraded=sanitizeSave(JSON.parse(JSON.stringify(prior)),catalog);
+ assert.equal(upgraded.onboarding,true);assert.equal(upgraded.tutorialStep,7);
 });

@@ -70,8 +70,9 @@ export function sanitizeSave(raw, catalog) {
   });
   s.selectedNode=used.has(raw.selectedNode)?raw.selectedNode:s.nodes[0]?.id||null;
   s.stats={resets:integer(asObject(raw.stats).resets),clicks:integer(asObject(raw.stats).clicks)};
-  s.onboarding=raw.onboarding===true;
-  s.tutorialStep=integer(raw.tutorialStep,0,7);
+  // Existing v1.0 saves have no tutorialStep: keep established factories in the full game.
+  s.onboarding=raw.onboarding===true || (raw.tutorialStep===undefined && s.nodes.length>2);
+  s.tutorialStep=integer(raw.tutorialStep,s.onboarding?7:0,7);
   s.layouts=(Array.isArray(raw.layouts)?raw.layouts:[]).slice(0,5).map(layout=>({
     name:typeof layout?.name==='string'?layout.name.slice(0,32):'Saved layout',
     nodes:(Array.isArray(layout?.nodes)?layout.nodes:[]).slice(0,120).filter(n=>catalog.facilities[n.kind]).map(n=>({id:text(n.id),kind:n.kind,x:integer(n.x,0,2400),y:integer(n.y,0,1500)})),
@@ -94,7 +95,9 @@ function migrateV2(old) {
   s.investments.dividends=integer(meta.meta_mult,0,12);
   s.investments.infrastructure=integer(meta.meta_slots,0,12);
   s.stats.resets=integer(asObject(old.stats).prestiges);
-  s.onboarding=true;
+  const established=operatingGraph();
+  s.nodes=established.nodes;s.edges=established.edges;s.nextId=5;s.selectedNode='n3';
+  s.onboarding=true;s.tutorialStep=7;
   s.lastSeen=number(old.lastSeen,Date.now(),1e15);
   return s;
 }
