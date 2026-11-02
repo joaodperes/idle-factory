@@ -33,6 +33,8 @@ export function price(state,catalog,resource){
   return base*priceMultiplier(state,resource)*(1+bonus(state,'pricing'))*(1+0.1*(state.investments.dividends||0))*(1+researchModifier(state,'pricing'));
 }
 export function sell(state,catalog,resource,amount){
+  // Both manual and automatic sales must leave active contract allocations untouched.
+  reserveStoredStock(state);
   let remaining=amount;
   let sold=0;
   const unitPrice=price(state,catalog,resource)*(state.autoSell[resource]?(1+bonus(state,'autoPricing')):1);
